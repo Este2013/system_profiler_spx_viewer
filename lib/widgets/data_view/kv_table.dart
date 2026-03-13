@@ -256,9 +256,10 @@ class _KvRowState extends State<_KvRow> {
     }
     if (value is List) {
       if (value.every((e) => e is! Map && e is! List)) {
-        return value.join(', ');
+        return value.map((e) => formatSpxValue(e.toString())).join(', ');
       }
     }
+    if (value is String) return formatSpxValue(value);
     return value.toString();
   }
 }

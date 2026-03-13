@@ -7,6 +7,9 @@ import 'kv_table.dart';
 import 'items_table.dart';
 import 'usb_tree_view.dart';
 import 'log_viewer.dart';
+import 'grouped_kv_view.dart';
+import 'nested_items_view.dart';
+import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
 class SectionView extends StatelessWidget {
@@ -56,10 +59,38 @@ class SectionView extends StatelessWidget {
       return LogViewer(items: section.items);
     }
 
+    // Language & Region (and similar grouped-settings sections) →
+    // named groups stacked vertically rather than a flat table.
+    if (section.dataType == 'SPInternationalDataType') {
+      return GroupedKvView(
+        items: section.items,
+        searchQuery: searchQuery,
+      );
+    }
+
     if (section.items.length == 1) {
-      // Single item → key-value table
+      final only = section.items.first;
+
+      // Wrapper pattern: single item whose own _items list holds the real data
+      // (e.g. Audio "coreaudio_device" wrapping VZ249, Mix 3, …).
+      final nested = only['_items'];
+      if (nested is List && nested.isNotEmpty) {
+        final nestedItems =
+            nested.whereType<Map<String, dynamic>>().toList();
+        if (nestedItems.isNotEmpty) {
+          return NestedItemsView(
+            items: nestedItems,
+            searchQuery: searchQuery,
+            keyFormatter: _keyFormatterFor(section.dataType),
+            subtitleBuilder: _subtitleBuilderFor(section.dataType),
+            detailIcon: _detailIconFor(section.dataType),
+          );
+        }
+      }
+
+      // Single item with no nested _items → plain key-value table.
       return KvTable(
-        item: section.items.first,
+        item: only,
         searchQuery: searchQuery,
       );
     }
@@ -68,6 +99,43 @@ class SectionView extends StatelessWidget {
       section: section,
       searchQuery: searchQuery,
     );
+  }
+}
+
+// ─── Helpers for NestedItemsView configuration ──────────────────────────────
+
+String Function(String) _keyFormatterFor(String dataType) {
+  switch (dataType) {
+    case 'SPAudioDataType':
+      return formatAudioKey;
+    default:
+      return formatKey;
+  }
+}
+
+String? Function(Map<String, dynamic>)? _subtitleBuilderFor(String dataType) {
+  switch (dataType) {
+    case 'SPAudioDataType':
+      return (item) {
+        final mfr = item['coreaudio_device_manufacturer']?.toString();
+        final transport = item['coreaudio_device_transport']?.toString();
+        final parts = [
+          if (mfr != null && mfr.isNotEmpty) mfr,
+          if (transport != null) formatSpxValue(transport),
+        ];
+        return parts.isEmpty ? null : parts.join(' · ');
+      };
+    default:
+      return null;
+  }
+}
+
+IconData _detailIconFor(String dataType) {
+  switch (dataType) {
+    case 'SPAudioDataType':
+      return Icons.graphic_eq;
+    default:
+      return Icons.tune;
   }
 }
 
