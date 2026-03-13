@@ -21,6 +21,12 @@ class NestedItemsView extends StatefulWidget {
   /// Optional function to derive a subtitle line for each list row.
   final String? Function(Map<String, dynamic>)? subtitleBuilder;
 
+  /// Optional function returning a leading icon for each list row.
+  final IconData? Function(Map<String, dynamic>)? leadingIconBuilder;
+
+  /// Optional function returning a trailing icon for each list row.
+  final IconData? Function(Map<String, dynamic>)? trailingIconBuilder;
+
   /// Icon shown in the detail-panel header.
   final IconData detailIcon;
 
@@ -30,6 +36,8 @@ class NestedItemsView extends StatefulWidget {
     this.searchQuery = '',
     String Function(String)? keyFormatter,
     this.subtitleBuilder,
+    this.leadingIconBuilder,
+    this.trailingIconBuilder,
     this.detailIcon = Icons.tune,
   }) : keyFormatter = keyFormatter ?? formatKey;
 
@@ -54,12 +62,14 @@ class _NestedItemsViewState extends State<NestedItemsView> {
       children: [
         // ── Item list ──────────────────────────────────────────────────────
         SizedBox(
-          width: 260,
+          width: 300,
           child: _ListPanel(
             items: widget.items,
             selected: _selected,
             onSelect: (item) => setState(() => _selected = item),
             subtitleBuilder: widget.subtitleBuilder,
+            leadingIconBuilder: widget.leadingIconBuilder,
+            trailingIconBuilder: widget.trailingIconBuilder,
           ),
         ),
 
@@ -98,17 +108,23 @@ class _ListPanel extends StatelessWidget {
   final Map<String, dynamic>? selected;
   final ValueChanged<Map<String, dynamic>> onSelect;
   final String? Function(Map<String, dynamic>)? subtitleBuilder;
+  final IconData? Function(Map<String, dynamic>)? leadingIconBuilder;
+  final IconData? Function(Map<String, dynamic>)? trailingIconBuilder;
 
   const _ListPanel({
     required this.items,
     required this.selected,
     required this.onSelect,
     this.subtitleBuilder,
+    this.leadingIconBuilder,
+    this.trailingIconBuilder,
   });
 
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // Whether any item provides a leading icon — if so, reserve the gutter.
+    final hasLeading = leadingIconBuilder != null;
     return Container(
       color: cs.surfaceContainerLow,
       child: ListView.builder(
@@ -119,38 +135,77 @@ class _ListPanel extends StatelessWidget {
           final isSel = selected == item;
           final name = item['_name']?.toString() ?? 'Unknown';
           final subtitle = subtitleBuilder?.call(item);
+          final leadingIcon = leadingIconBuilder?.call(item);
+          final trailingIcon = trailingIconBuilder?.call(item);
           final theme = Theme.of(context);
+
+          final labelColor =
+              isSel ? cs.onPrimaryContainer : cs.onSurface;
+          final mutedColor = isSel
+              ? cs.onPrimaryContainer.withAlpha(160)
+              : cs.onSurfaceVariant;
 
           return Material(
             color: isSel ? cs.primaryContainer : Colors.transparent,
             child: InkWell(
               onTap: () => onSelect(item),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                padding: const EdgeInsets.fromLTRB(12, 7, 10, 7),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight:
-                            isSel ? FontWeight.w600 : FontWeight.normal,
-                        color: isSel
-                            ? cs.onPrimaryContainer
-                            : cs.onSurface,
+                    // ── Leading icon gutter ─────────────────────────────
+                    if (hasLeading) ...[
+                      SizedBox(
+                        width: 22,
+                        child: leadingIcon != null
+                            ? Icon(
+                                leadingIcon,
+                                size: 16,
+                                color: isSel ? cs.primary : cs.onSurfaceVariant,
+                              )
+                            : null,
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      const SizedBox(width: 8),
+                    ],
+
+                    // ── Name + subtitle ─────────────────────────────────
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: isSel
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: labelColor,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (subtitle != null && subtitle.isNotEmpty)
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: mutedColor,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                        ],
+                      ),
                     ),
-                    if (subtitle != null && subtitle.isNotEmpty)
-                      Text(
-                        subtitle,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isSel
-                              ? cs.onPrimaryContainer.withAlpha(160)
-                              : cs.onSurfaceVariant,
-                        ),
-                        overflow: TextOverflow.ellipsis,
+
+                    // ── Trailing transport icon ──────────────────────────
+                    if (trailingIcon != null) ...[
+                      const SizedBox(width: 8),
+                      Icon(
+                        trailingIcon,
+                        size: 15,
+                        color: mutedColor,
                       ),
+                    ],
                   ],
                 ),
               ),

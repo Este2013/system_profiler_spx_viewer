@@ -63,7 +63,7 @@ class _LogViewerState extends State<LogViewer> {
       children: [
         // ── Log list ───────────────────────────────────────────────────────
         SizedBox(
-          width: 280,
+          width: 300,
           child: _ListPanel(
             items: widget.items,
             selected: _selected,

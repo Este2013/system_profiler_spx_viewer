@@ -142,8 +142,12 @@ class _KvRow extends StatefulWidget {
   State<_KvRow> createState() => _KvRowState();
 }
 
-class _KvRowState extends State<_KvRow> {
-  bool _expanded = false;
+class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
+  bool _expanded = true;
+
+  late final AnimationController _animCtrl;
+  late final Animation<double> _sizeFactor;
+  late final Animation<double> _chevronTurns;
 
   bool get _isComplex {
     if (widget.value is Map) return true;
@@ -151,6 +155,32 @@ class _KvRowState extends State<_KvRow> {
       return (widget.value as List).any((e) => e is Map || e is List);
     }
     return false;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+      value: 1.0, // starts expanded
+    );
+    _sizeFactor =
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
+    _chevronTurns = Tween<double>(begin: -0.25, end: 0.0).animate(
+      CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    _expanded ? _animCtrl.forward() : _animCtrl.reverse();
   }
 
   @override
@@ -199,45 +229,49 @@ class _KvRowState extends State<_KvRow> {
 
   Widget _buildComplexValue(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: colorScheme.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _expanded ? 'Collapse' : _summarizeComplex(widget.value),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: colorScheme.primary,
+        // ── Animated header (same style as Language & Region groups) ───────
+        InkWell(
+          onTap: _toggle,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RotationTransition(
+                  turns: _chevronTurns,
+                  child: Icon(Icons.expand_more, size: 16, color: cs.primary),
                 ),
-              ),
-            ],
+                const SizedBox(width: 4),
+                Text(
+                  _expanded ? 'Collapse' : _summarizeComplex(widget.value),
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.primary),
+                ),
+              ],
+            ),
           ),
         ),
-        if (_expanded) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: colorScheme.outlineVariant.withAlpha(120),
+        // ── Animated content ───────────────────────────────────────────────
+        SizeTransition(
+          sizeFactor: _sizeFactor,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cs.outlineVariant.withAlpha(120)),
               ),
+              child: _ComplexValueView(value: widget.value, depth: 0),
             ),
-            child: _ComplexValueView(value: widget.value, depth: 0),
           ),
-        ],
+        ),
       ],
     );
   }

@@ -95,6 +95,10 @@ String formatSpxValue(String v) {
       return 'Japanese';
     case 'persian':
       return 'Persian';
+    case 'attrib_on':
+      return 'On';
+    case 'attrib_off':
+      return 'Off';
     case 'spaudio_default':
       return 'Default';
     default:

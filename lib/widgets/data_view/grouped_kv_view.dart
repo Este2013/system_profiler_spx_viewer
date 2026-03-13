@@ -331,13 +331,41 @@ class _KvRow extends StatefulWidget {
   State<_KvRow> createState() => _KvRowState();
 }
 
-class _KvRowState extends State<_KvRow> {
-  bool _expanded = false;
+class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
+  bool _expanded = true;
 
-  /// True when the value should be rendered as a collapsible sub-table.
-  /// Small dicts (≤ 8 entries) start auto-expanded; large ones start collapsed.
+  late final AnimationController _animCtrl;
+  late final Animation<double> _sizeFactor;
+  late final Animation<double> _chevronTurns;
+
   bool get _isDict => widget.value is Map;
   bool get _isList => widget.value is List;
+
+  @override
+  void initState() {
+    super.initState();
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+      value: 1.0, // starts expanded
+    );
+    _sizeFactor =
+        CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut);
+    _chevronTurns = Tween<double>(begin: -0.25, end: 0.0).animate(
+      CurvedAnimation(parent: _animCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggle() {
+    setState(() => _expanded = !_expanded);
+    _expanded ? _animCtrl.forward() : _animCtrl.reverse();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -348,13 +376,6 @@ class _KvRowState extends State<_KvRow> {
     final Widget valueWidget;
     if (_isDict) {
       final map = (widget.value as Map<dynamic, dynamic>).cast<String, dynamic>();
-      // Auto-expand small dicts; keep larger ones collapsed.
-      if (!_expanded && map.length <= 8) {
-        // Trigger expansion on first build.
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) { if (mounted) setState(() => _expanded = true); },
-        );
-      }
       valueWidget = _buildDictValue(context, map, cs, theme);
     } else if (_isList) {
       final list = widget.value as List;
@@ -415,51 +436,6 @@ class _KvRowState extends State<_KvRow> {
     ColorScheme cs,
     ThemeData theme,
   ) {
-    if (_expanded) {
-      return Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: cs.outlineVariant.withAlpha(120)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: map.entries
-              .where((e) => !isInternalKey(e.key))
-              .map(
-                (e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 160,
-                        child: Text(
-                          e.key, // bundle IDs etc. — keep as-is
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          _fmtScalar(e.value),
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-      );
-    }
-
     return _buildExpandable(
       context,
       summary: '${map.length} field${map.length == 1 ? '' : 's'}',
@@ -479,38 +455,44 @@ class _KvRowState extends State<_KvRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                _expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: cs.primary,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                _expanded ? 'Collapse' : summary,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: cs.primary),
-              ),
-            ],
+        // ── Animated header (same style as group section headers) ──────────
+        InkWell(
+          onTap: _toggle,
+          borderRadius: BorderRadius.circular(6),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RotationTransition(
+                  turns: _chevronTurns,
+                  child: Icon(Icons.expand_more, size: 16, color: cs.primary),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _expanded ? 'Collapse' : summary,
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.primary),
+                ),
+              ],
+            ),
           ),
         ),
-        if (_expanded) ...[
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                  color: cs.outlineVariant.withAlpha(120)),
+        // ── Animated content ───────────────────────────────────────────────
+        SizeTransition(
+          sizeFactor: _sizeFactor,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: cs.outlineVariant.withAlpha(120)),
+              ),
+              child: child,
             ),
-            child: child,
           ),
-        ],
+        ),
       ],
     );
   }

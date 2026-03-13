@@ -90,7 +90,7 @@ class _UsbTreeViewState extends State<UsbTreeView> {
       children: [
         // ── Tree panel ────────────────────────────────────────────────────
         SizedBox(
-          width: 310,
+          width: 300,
           child: _TreePanel(
             buses: widget.buses,
             selected: _selected,

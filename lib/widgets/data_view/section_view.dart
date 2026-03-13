@@ -9,6 +9,7 @@ import 'usb_tree_view.dart';
 import 'log_viewer.dart';
 import 'grouped_kv_view.dart';
 import 'nested_items_view.dart';
+import 'bluetooth_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -23,12 +24,7 @@ class SectionView extends StatelessWidget {
 
     if (section == null) {
       return Center(
-        child: Text(
-          'Select a section from the sidebar',
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: theme.colorScheme.onSurface.withAlpha(100),
-          ),
-        ),
+        child: Text('Select a section from the sidebar', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurface.withAlpha(100))),
       );
     }
 
@@ -39,11 +35,7 @@ class SectionView extends StatelessWidget {
         _SectionHeader(section: section),
 
         // ── Content ────────────────────────────────────────────────────────
-        Expanded(
-          child: section.isEmpty
-              ? _EmptySectionView(section: section)
-              : _buildContent(section, provider.globalSearchQuery),
-        ),
+        Expanded(child: section.isEmpty ? _EmptySectionView(section: section) : _buildContent(section, provider.globalSearchQuery)),
       ],
     );
   }
@@ -62,10 +54,12 @@ class SectionView extends StatelessWidget {
     // Language & Region (and similar grouped-settings sections) →
     // named groups stacked vertically rather than a flat table.
     if (section.dataType == 'SPInternationalDataType') {
-      return GroupedKvView(
-        items: section.items,
-        searchQuery: searchQuery,
-      );
+      return GroupedKvView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Bluetooth → dedicated grouped view matching L&R style.
+    if (section.dataType == 'SPBluetoothDataType') {
+      return BluetoothView(items: section.items, searchQuery: searchQuery);
     }
 
     if (section.items.length == 1) {
@@ -75,30 +69,25 @@ class SectionView extends StatelessWidget {
       // (e.g. Audio "coreaudio_device" wrapping VZ249, Mix 3, …).
       final nested = only['_items'];
       if (nested is List && nested.isNotEmpty) {
-        final nestedItems =
-            nested.whereType<Map<String, dynamic>>().toList();
+        final nestedItems = nested.whereType<Map<String, dynamic>>().toList();
         if (nestedItems.isNotEmpty) {
           return NestedItemsView(
             items: nestedItems,
             searchQuery: searchQuery,
             keyFormatter: _keyFormatterFor(section.dataType),
             subtitleBuilder: _subtitleBuilderFor(section.dataType),
+            leadingIconBuilder: _leadingIconBuilderFor(section.dataType),
+            trailingIconBuilder: _trailingIconBuilderFor(section.dataType),
             detailIcon: _detailIconFor(section.dataType),
           );
         }
       }
 
       // Single item with no nested _items → plain key-value table.
-      return KvTable(
-        item: only,
-        searchQuery: searchQuery,
-      );
+      return KvTable(item: only, searchQuery: searchQuery);
     }
     // Multiple items → sortable/filterable table
-    return ItemsTable(
-      section: section,
-      searchQuery: searchQuery,
-    );
+    return ItemsTable(section: section, searchQuery: searchQuery);
   }
 }
 
@@ -119,10 +108,7 @@ String? Function(Map<String, dynamic>)? _subtitleBuilderFor(String dataType) {
       return (item) {
         final mfr = item['coreaudio_device_manufacturer']?.toString();
         final transport = item['coreaudio_device_transport']?.toString();
-        final parts = [
-          if (mfr != null && mfr.isNotEmpty) mfr,
-          if (transport != null) formatSpxValue(transport),
-        ];
+        final parts = [if (mfr != null && mfr.isNotEmpty) mfr, if (transport != null) formatSpxValue(transport)];
         return parts.isEmpty ? null : parts.join(' · ');
       };
     default:
@@ -136,6 +122,52 @@ IconData _detailIconFor(String dataType) {
       return Icons.graphic_eq;
     default:
       return Icons.tune;
+  }
+}
+
+IconData? Function(Map<String, dynamic>)? _leadingIconBuilderFor(String dataType) {
+  switch (dataType) {
+    case 'SPAudioDataType':
+      return (item) {
+        final hasOut = item.containsKey('coreaudio_output_source') || item.containsKey('coreaudio_device_output');
+        final hasIn = item.containsKey('coreaudio_input_source') || item.containsKey('coreaudio_device_input');
+        if (hasOut && hasIn) return Icons.headphones;
+        if (hasOut) return Icons.volume_up;
+        if (hasIn) return Icons.mic;
+        return Icons.graphic_eq;
+      };
+    default:
+      return null;
+  }
+}
+
+IconData? Function(Map<String, dynamic>)? _trailingIconBuilderFor(String dataType) {
+  switch (dataType) {
+    case 'SPAudioDataType':
+      return (item) {
+        final raw = item['coreaudio_device_transport']?.toString();
+        if (raw == null) return null;
+        switch (formatSpxValue(raw)) {
+          case 'HDMI':
+            return Icons.monitor_outlined;
+          case 'USB':
+            return Icons.usb;
+          case 'Virtual':
+            return Icons.cloud_outlined;
+          case 'Built-in':
+            return Icons.laptop_mac;
+          case 'Bluetooth':
+            return Icons.bluetooth;
+          case 'Thunderbolt':
+            return Icons.bolt;
+          case 'PCI':
+            return Icons.extension;
+          default:
+            return null;
+        }
+      };
+    default:
+      return null;
   }
 }
 
@@ -155,12 +187,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: 0.5,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5)),
       ),
       child: Row(
         children: [
@@ -168,32 +195,16 @@ class _SectionHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  section.displayName,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(section.displayName, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
                 if (section.timestamp != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      'Report: ${DateFormat('yyyy-MM-dd  HH:mm:ss').format(section.timestamp!.toLocal())}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    child: Text('Report: ${DateFormat('yyyy-MM-dd  HH:mm:ss').format(section.timestamp!.toLocal())}', style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
                   ),
               ],
             ),
           ),
-          if (!section.isEmpty)
-            _CountBadge(
-              count: section.items.length,
-              label: section.items.length == 1 ? 'item' : 'items',
-              colorScheme: colorScheme,
-              theme: theme,
-            ),
+          if (!section.isEmpty) _CountBadge(count: section.items.length, label: section.items.length == 1 ? 'item' : 'items', colorScheme: colorScheme, theme: theme),
         ],
       ),
     );
@@ -206,27 +217,16 @@ class _CountBadge extends StatelessWidget {
   final ColorScheme colorScheme;
   final ThemeData theme;
 
-  const _CountBadge({
-    required this.count,
-    required this.label,
-    required this.colorScheme,
-    required this.theme,
-  });
+  const _CountBadge({required this.count, required this.label, required this.colorScheme, required this.theme});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
+      decoration: BoxDecoration(color: colorScheme.secondaryContainer, borderRadius: BorderRadius.circular(14)),
       child: Text(
         '$count $label',
-        style: theme.textTheme.labelMedium?.copyWith(
-          color: colorScheme.onSecondaryContainer,
-          fontWeight: FontWeight.w500,
-        ),
+        style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -248,25 +248,11 @@ class _EmptySectionView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.inbox_outlined,
-            size: 52,
-            color: colorScheme.onSurface.withAlpha(50),
-          ),
+          Icon(Icons.inbox_outlined, size: 52, color: colorScheme.onSurface.withAlpha(50)),
           const SizedBox(height: 14),
-          Text(
-            'No data available',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              color: colorScheme.onSurface.withAlpha(100),
-            ),
-          ),
+          Text('No data available', style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withAlpha(100))),
           const SizedBox(height: 4),
-          Text(
-            section.dataType,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurface.withAlpha(60),
-            ),
-          ),
+          Text(section.dataType, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(60))),
         ],
       ),
     );
