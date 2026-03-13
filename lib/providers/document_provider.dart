@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/spx_document.dart';
 import '../models/spx_section.dart';
 import '../parser/spx_parser.dart';
+import '../utils/category_mapping.dart';
 import '../utils/json_exporter.dart';
 
 class DocumentProvider extends ChangeNotifier {
@@ -23,6 +24,17 @@ class DocumentProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get hasDocument => _document != null;
 
+  /// Returns the category name if the currently selected section is a
+  /// category overview (e.g. 'Hardware' when SPHardwareDataType is shown).
+  String? get selectedCategoryOverview {
+    final section = _selectedSection;
+    if (section == null) return null;
+    for (final entry in kCategoryOverviewDataType.entries) {
+      if (entry.value == section.dataType) return entry.key;
+    }
+    return null;
+  }
+
   Future<void> loadFile(String path) async {
     _isLoading = true;
     _errorMessage = null;
@@ -38,8 +50,8 @@ class DocumentProvider extends ChangeNotifier {
           .firstOrNull;
       _globalSearchQuery = '';
       _isSearchActive = false;
-    } catch (e) {
-      _errorMessage = 'Failed to load file:\n$e';
+    } catch (e, stackTrace) {
+      _errorMessage = 'Failed to load file:\n\n$e\n\n$stackTrace';
       _document = null;
       _selectedSection = null;
     } finally {
@@ -63,6 +75,19 @@ class DocumentProvider extends ChangeNotifier {
   void selectSection(SpxSection section) {
     _selectedSection = section;
     notifyListeners();
+  }
+
+  /// Selects the overview section for [category] (e.g. SPHardwareDataType for
+  /// 'Hardware'). Does nothing if the document has no such section.
+  void selectCategoryOverview(String category) {
+    if (_document == null) return;
+    final overviewType = kCategoryOverviewDataType[category];
+    if (overviewType == null) return;
+    final section = _document!.sections
+        .where((s) => s.dataType == overviewType)
+        .cast<SpxSection?>()
+        .firstOrNull;
+    if (section != null) selectSection(section);
   }
 
   void setGlobalSearch(String query) {

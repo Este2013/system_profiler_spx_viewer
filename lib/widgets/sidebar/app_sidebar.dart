@@ -12,13 +12,13 @@ class AppSidebar extends StatefulWidget {
 }
 
 class _AppSidebarState extends State<AppSidebar> {
+  // All categories start expanded.
   final Set<String> _expandedCategories = {
     'Hardware',
     'Network',
     'Software',
     'Other',
   };
-  bool _showEmptySections = false;
 
   @override
   Widget build(BuildContext context) {
@@ -27,71 +27,44 @@ class _AppSidebarState extends State<AppSidebar> {
     if (doc == null) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
 
-    // Group sections by category, preserving display order
+    // Group sections by category (all sections, including empty ones).
     final categorized = <String, List<SpxSection>>{};
     for (final section in doc.sections) {
       categorized.putIfAbsent(section.categoryName, () => []).add(section);
     }
 
-    // Build ordered category list
+    // Ordered category list.
     final categories = [...kCategoryOrder];
     for (final cat in categorized.keys) {
       if (!categories.contains(cat)) categories.add(cat);
     }
 
     return Container(
-      color: colorScheme.surfaceContainerLow,
+      color: cs.surfaceContainerLow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header: filename
-          _buildHeader(context, doc.fileName, colorScheme, theme),
-
-          // Section list
+          _FileHeader(fileName: doc.fileName),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
               children: [
                 for (final cat in categories)
                   if (categorized.containsKey(cat))
-                    _buildCategoryGroup(
-                      context,
-                      cat,
-                      categorized[cat]!,
-                      provider,
-                      theme,
-                      colorScheme,
+                    _CategoryGroup(
+                      category: cat,
+                      allSections: categorized[cat]!,
+                      isExpanded: _expandedCategories.contains(cat),
+                      onToggleExpand: () => setState(() {
+                        if (_expandedCategories.contains(cat)) {
+                          _expandedCategories.remove(cat);
+                        } else {
+                          _expandedCategories.add(cat);
+                        }
+                      }),
                     ),
-
-                const Divider(height: 8, thickness: 0.5),
-
-                // Toggle empty sections
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  child: TextButton.icon(
-                    onPressed: () {
-                      setState(() => _showEmptySections = !_showEmptySections);
-                    },
-                    icon: Icon(
-                      _showEmptySections
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 14,
-                    ),
-                    label: Text(
-                      _showEmptySections
-                          ? 'Hide empty sections'
-                          : 'Show empty sections',
-                    ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: colorScheme.onSurfaceVariant,
-                      textStyle: theme.textTheme.bodySmall,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
@@ -99,31 +72,32 @@ class _AppSidebarState extends State<AppSidebar> {
       ),
     );
   }
+}
 
-  Widget _buildHeader(
-    BuildContext context,
-    String fileName,
-    ColorScheme colorScheme,
-    ThemeData theme,
-  ) {
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FileHeader extends StatelessWidget {
+  final String fileName;
+  const _FileHeader({required this.fileName});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerLow,
-        border: Border(
-          bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5),
-        ),
+        border: Border(bottom: BorderSide(color: cs.outlineVariant, width: 0.5)),
       ),
       child: Row(
         children: [
-          Icon(Icons.terminal, size: 15, color: colorScheme.primary),
+          Icon(Icons.terminal, size: 15, color: cs.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               fileName,
               style: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w500,
-                color: colorScheme.onSurface,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -132,139 +106,111 @@ class _AppSidebarState extends State<AppSidebar> {
       ),
     );
   }
+}
 
-  Widget _buildCategoryGroup(
-    BuildContext context,
-    String category,
-    List<SpxSection> sections,
-    DocumentProvider provider,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    final isExpanded = _expandedCategories.contains(category);
-    final visible = _showEmptySections
-        ? sections
-        : sections.where((s) => !s.isEmpty).toList();
+// ─────────────────────────────────────────────────────────────────────────────
 
-    if (visible.isEmpty) return const SizedBox.shrink();
+class _CategoryGroup extends StatelessWidget {
+  final String category;
+  final List<SpxSection> allSections;
+  final bool isExpanded;
+  final VoidCallback onToggleExpand;
+
+  const _CategoryGroup({
+    required this.category,
+    required this.allSections,
+    required this.isExpanded,
+    required this.onToggleExpand,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<DocumentProvider>();
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    // Overview sections are hidden from the sub-item list.
+    final subItems = allSections
+        .where((s) => !kOverviewDataTypes.contains(s.dataType))
+        .toList()
+      ..sort((a, b) => a.displayName.compareTo(b.displayName));
+
+    // Whether the overview for this category is currently active.
+    final overviewActive = provider.selectedCategoryOverview == category;
+
+    // The category has an overview if a matching overview section exists.
+    final overviewType = kCategoryOverviewDataType[category];
+    final hasOverview = overviewType != null &&
+        allSections.any((s) => s.dataType == overviewType);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Category header (clickable to expand/collapse)
-        InkWell(
-          onTap: () => setState(() {
-            if (isExpanded) {
-              _expandedCategories.remove(category);
-            } else {
-              _expandedCategories.add(category);
-            }
-          }),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 10, 6),
-            child: Row(
-              children: [
-                Icon(
-                  _categoryIcon(category),
-                  size: 13,
-                  color: colorScheme.primary,
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    category.toUpperCase(),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: colorScheme.onSurfaceVariant,
-                      letterSpacing: 0.8,
+        // ── Category header ──────────────────────────────────────────────
+        Container(
+          decoration: overviewActive
+              ? BoxDecoration(
+                  color: cs.primaryContainer.withAlpha(120),
+                )
+              : null,
+          child: Row(
+            children: [
+              // Clicking the label area navigates to the overview.
+              Expanded(
+                child: InkWell(
+                  onTap: hasOverview
+                      ? () => provider.selectCategoryOverview(category)
+                      : onToggleExpand,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 9, 4, 7),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _categoryIcon(category),
+                          size: 13,
+                          color: overviewActive
+                              ? cs.primary
+                              : cs.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          category.toUpperCase(),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: overviewActive
+                                ? cs.onPrimaryContainer
+                                : cs.onSurfaceVariant,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                Icon(
-                  isExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 15,
-                  color: colorScheme.onSurfaceVariant.withAlpha(180),
+              ),
+              // Separate expand/collapse button.
+              InkWell(
+                onTap: onToggleExpand,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 10, 8),
+                  child: Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 15,
+                    color: cs.onSurfaceVariant.withAlpha(160),
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
 
-        // Section items
+        // ── Sub-items ────────────────────────────────────────────────────
         if (isExpanded)
-          for (final section in visible)
-            _buildSectionTile(context, section, provider, theme, colorScheme),
+          for (final section in subItems)
+            _SectionTile(section: section),
       ],
     );
-  }
-
-  Widget _buildSectionTile(
-    BuildContext context,
-    SpxSection section,
-    DocumentProvider provider,
-    ThemeData theme,
-    ColorScheme colorScheme,
-  ) {
-    final isSelected =
-        provider.selectedSection?.dataType == section.dataType;
-
-    // Count search matches
-    int matchCount = 0;
-    final q = provider.globalSearchQuery;
-    if (q.isNotEmpty) {
-      final qLower = q.toLowerCase();
-      for (final item in section.items) {
-        if (_itemContainsQuery(item, qLower)) matchCount++;
-      }
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      child: Material(
-        color: isSelected ? colorScheme.primaryContainer : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          onTap: () => provider.selectSection(section),
-          borderRadius: BorderRadius.circular(7),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 6, 10, 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    section.displayName,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected
-                          ? colorScheme.onPrimaryContainer
-                          : section.isEmpty
-                              ? colorScheme.onSurface.withAlpha(80)
-                              : colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                if (matchCount > 0)
-                  _MatchBadge(count: matchCount, colorScheme: colorScheme, theme: theme)
-                else if (section.isEmpty)
-                  Icon(
-                    Icons.circle,
-                    size: 5,
-                    color: colorScheme.onSurface.withAlpha(50),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  bool _itemContainsQuery(Map<String, dynamic> item, String queryLower) {
-    for (final value in item.values) {
-      if (value.toString().toLowerCase().contains(queryLower)) return true;
-    }
-    return false;
   }
 
   IconData _categoryIcon(String category) {
@@ -281,29 +227,95 @@ class _AppSidebarState extends State<AppSidebar> {
   }
 }
 
-class _MatchBadge extends StatelessWidget {
-  final int count;
-  final ColorScheme colorScheme;
-  final ThemeData theme;
+// ─────────────────────────────────────────────────────────────────────────────
 
-  const _MatchBadge({
-    required this.count,
-    required this.colorScheme,
-    required this.theme,
-  });
+class _SectionTile extends StatelessWidget {
+  final SpxSection section;
+  const _SectionTile({required this.section});
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<DocumentProvider>();
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    // Overview sections are never in the sub-items list, so no conflict.
+    final isSelected = provider.selectedSection?.dataType == section.dataType;
+
+    // Count search matches.
+    int matchCount = 0;
+    final q = provider.globalSearchQuery;
+    if (q.isNotEmpty) {
+      final qLower = q.toLowerCase();
+      for (final item in section.items) {
+        if (item.values.any((v) => v.toString().toLowerCase().contains(qLower))) {
+          matchCount++;
+        }
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      child: Material(
+        color: isSelected ? cs.primaryContainer : Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          onTap: () => provider.selectSection(section),
+          borderRadius: BorderRadius.circular(7),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(28, 6, 10, 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    section.displayName,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? cs.onPrimaryContainer
+                          : section.isEmpty
+                              ? cs.onSurface.withAlpha(70)
+                              : cs.onSurface,
+                    ),
+                  ),
+                ),
+                if (matchCount > 0)
+                  _MatchBadge(count: matchCount)
+                else if (section.isEmpty)
+                  Icon(
+                    Icons.circle,
+                    size: 5,
+                    color: cs.onSurface.withAlpha(50),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MatchBadge extends StatelessWidget {
+  final int count;
+  const _MatchBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: colorScheme.secondary,
+        color: cs.secondary,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
         '$count',
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSecondary,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: cs.onSecondary,
           fontWeight: FontWeight.w600,
         ),
       ),

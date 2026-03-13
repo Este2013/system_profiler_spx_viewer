@@ -5,6 +5,8 @@ import '../../models/spx_section.dart';
 import '../../providers/document_provider.dart';
 import 'kv_table.dart';
 import 'items_table.dart';
+import 'usb_tree_view.dart';
+import 'log_viewer.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
 class SectionView extends StatelessWidget {
@@ -44,6 +46,16 @@ class SectionView extends StatelessWidget {
   }
 
   Widget _buildContent(SpxSection section, String searchQuery) {
+    // USB host data type → dedicated tree + detail view.
+    if (section.dataType == 'SPUSBHostDataType') {
+      return UsbTreeView(buses: section.items);
+    }
+
+    // Logs → dedicated two-pane log viewer.
+    if (section.dataType == 'SPLogsDataType') {
+      return LogViewer(items: section.items);
+    }
+
     if (section.items.length == 1) {
       // Single item → key-value table
       return KvTable(

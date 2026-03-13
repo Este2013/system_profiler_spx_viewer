@@ -50,13 +50,16 @@ class SpxParser {
   static SpxSection? _parseSection(XmlElement dictElement) {
     final data = _parseDictElement(dictElement);
 
-    final dataType = data['_dataType'] as String? ?? 'Unknown';
+    final dataType = data['_dataType']?.toString() ?? 'Unknown';
     final rawItems = data['_items'];
     final items = _extractItems(rawItems);
     final properties = (data['_properties'] is Map<String, dynamic>)
         ? data['_properties'] as Map<String, dynamic>
         : <String, dynamic>{};
-    final detailLevel = (data['_detailLevel'] as int?) ?? 0;
+    final rawDetail = data['_detailLevel'];
+    final detailLevel = rawDetail is int
+        ? rawDetail
+        : int.tryParse(rawDetail?.toString() ?? '') ?? 0;
 
     DateTime? timestamp;
     final ts = data['_timeStamp'];
@@ -87,9 +90,12 @@ class SpxParser {
       case 'string':
         return element.innerText;
       case 'integer':
-        return int.tryParse(element.innerText.trim()) ?? element.innerText;
+        // Prefer a proper int; if unparseable keep the raw string so data isn't lost.
+        final rawInt = element.innerText.trim();
+        return int.tryParse(rawInt) ?? rawInt;
       case 'real':
-        return double.tryParse(element.innerText.trim()) ?? element.innerText;
+        final rawReal = element.innerText.trim();
+        return double.tryParse(rawReal) ?? rawReal;
       case 'true':
         return true;
       case 'false':
