@@ -43,13 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
       leading: provider.hasDocument
           ? IconButton(
               icon: Icon(
-                provider.isSidebarCollapsed
-                    ? Icons.menu_rounded
-                    : Icons.menu_open_rounded,
+                provider.isSidebarCollapsed ? Icons.menu_rounded : Icons.menu_open_rounded,
               ),
-              tooltip: provider.isSidebarCollapsed
-                  ? 'Show sidebar'
-                  : 'Hide sidebar',
+              tooltip: provider.isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar',
               onPressed: provider.toggleSidebar,
             )
           : null,
@@ -88,14 +84,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           // Export JSON
           IconButton(
-            icon: const Icon(Icons.download_outlined),
+            icon: const Icon(Icons.upload),
             tooltip: 'Export as JSON',
             onPressed: () => _exportJson(context, provider),
           ),
         ],
         // Open file
         IconButton(
-          icon: const Icon(Icons.folder_open_outlined),
+          icon: const Icon(Icons.file_open),
           tooltip: 'Open SPX file',
           onPressed: () => provider.openFilePicker(),
         ),
@@ -151,9 +147,7 @@ class _MainLayout extends StatelessWidget {
           curve: Curves.easeInOut,
           child: SizedBox(
             width: provider.isSidebarCollapsed ? 0 : 248,
-            child: provider.isSidebarCollapsed
-                ? const SizedBox.shrink()
-                : const AppSidebar(),
+            child: provider.isSidebarCollapsed ? const SizedBox.shrink() : const AppSidebar(),
           ),
         ),
 

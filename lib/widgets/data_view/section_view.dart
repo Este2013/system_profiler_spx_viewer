@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/document_provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import 'kv_table.dart';
 import 'items_table.dart';
 import 'usb_tree_view.dart';
@@ -10,6 +11,9 @@ import 'log_viewer.dart';
 import 'grouped_kv_view.dart';
 import 'nested_items_view.dart';
 import 'bluetooth_view.dart';
+import 'controller_view.dart';
+import 'ethernet_view.dart';
+import 'displays_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -60,6 +64,24 @@ class SectionView extends StatelessWidget {
     // Bluetooth → dedicated grouped view matching L&R style.
     if (section.dataType == 'SPBluetoothDataType') {
       return BluetoothView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Ethernet → dedicated ordered view with clean labels.
+    if (section.dataType == 'SPEthernetDataType') {
+      return EthernetView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Graphics / Displays → GPU sections with nested per-display collapsibles.
+    if (section.dataType == 'SPDisplaysDataType') {
+      return DisplaysView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Controller (iBridge / T2 / Apple Silicon) → hierarchical indented tree.
+    if (section.dataType == 'SPiBridgeDataType') {
+      final item = section.items.isNotEmpty
+          ? section.items.first
+          : <String, dynamic>{};
+      return ControllerView(item: item, searchQuery: searchQuery);
     }
 
     if (section.items.length == 1) {
@@ -243,12 +265,13 @@ class _EmptySectionView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.inbox_outlined, size: 52, color: colorScheme.onSurface.withAlpha(50)),
+          Icon(Icons.inbox_outlined, size: sp.sz(52), color: colorScheme.onSurface.withAlpha(50)),
           const SizedBox(height: 14),
           Text('No data available', style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withAlpha(100))),
           const SizedBox(height: 4),

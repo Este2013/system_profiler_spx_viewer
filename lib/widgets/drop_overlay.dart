@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:provider/provider.dart';
 import '../providers/document_provider.dart';
+import '../providers/ui_scale_provider.dart';
 
 class DropOverlay extends StatefulWidget {
   final Widget child;
@@ -79,6 +80,7 @@ class _DropOverlayState extends State<DropOverlay> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return DropTarget(
       onDragEntered: (_) => setState(() => _isDragging = true),
@@ -123,7 +125,7 @@ class _DropOverlayState extends State<DropOverlay> {
                         children: [
                           Icon(
                             Icons.upload_file_outlined,
-                            size: 52,
+                            size: sp.sz(52),
                             color: colorScheme.primary,
                           ),
                           const SizedBox(height: 14),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 /// Displays a single SPX item (Map) as a filterable key-value table.
@@ -48,6 +50,7 @@ class _KvTableState extends State<KvTable> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     final entries = _filteredEntries;
 
     return Column(
@@ -61,7 +64,7 @@ class _KvTableState extends State<KvTable> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Filter fields...',
-              prefixIcon: const Icon(Icons.search, size: 18),
+              prefixIcon: Icon(Icons.search, size: sp.sz(18)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: colorScheme.outlineVariant),
@@ -70,7 +73,7 @@ class _KvTableState extends State<KvTable> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               suffixIcon: _filter.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close, size: 16),
+                      icon: Icon(Icons.close, size: sp.sz(16)),
                       onPressed: () {
                         _filterController.clear();
                         setState(() => _filter = '');
@@ -187,6 +190,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -195,7 +199,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
         children: [
           // Key column (fixed width)
           SizedBox(
-            width: 210,
+            width: sp.sz(210),
             child: Text(
               formatKey(widget.keyName),
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -230,6 +234,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
   Widget _buildComplexValue(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.read<UiScaleProvider>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +250,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
               children: [
                 RotationTransition(
                   turns: _chevronTurns,
-                  child: Icon(Icons.expand_more, size: 16, color: cs.primary),
+                  child: Icon(Icons.expand_more, size: sp.sz(16), color: cs.primary),
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -310,6 +315,7 @@ class _ComplexValueView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     if (value is Map<String, dynamic>) {
       final map = value as Map<String, dynamic>;
@@ -323,7 +329,7 @@ class _ComplexValueView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       SizedBox(
-                        width: depth == 0 ? 160 : 120,
+                        width: depth == 0 ? sp.sz(200) : sp.sz(150),
                         child: Text(
                           formatKey(e.key),
                           style: theme.textTheme.bodySmall?.copyWith(

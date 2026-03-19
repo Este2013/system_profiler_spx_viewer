@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,6 +102,7 @@ class _GroupedKvViewState extends State<GroupedKvView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -112,7 +115,7 @@ class _GroupedKvViewState extends State<GroupedKvView> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Filter fields…',
-              prefixIcon: const Icon(Icons.search, size: 18),
+              prefixIcon: Icon(Icons.search, size: sp.sz(18)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: cs.outlineVariant),
@@ -121,7 +124,7 @@ class _GroupedKvViewState extends State<GroupedKvView> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               suffixIcon: _filter.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close, size: 16),
+                      icon: Icon(Icons.close, size: sp.sz(16)),
                       onPressed: () {
                         _filterCtrl.clear();
                         setState(() => _filter = '');
@@ -219,6 +222,7 @@ class _GroupSectionState extends State<_GroupSection>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     final groupName = _formatGroupName(widget.item['_name']?.toString() ?? '');
 
@@ -256,7 +260,7 @@ class _GroupSectionState extends State<_GroupSection>
                     turns: _chevronTurns,
                     child: Icon(
                       Icons.expand_more,
-                      size: 20,
+                      size: sp.sz(20),
                       color: cs.onSurfaceVariant,
                     ),
                   ),
@@ -371,6 +375,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     // ── Decide rendering strategy ─────────────────────────────────────────
     final Widget valueWidget;
@@ -405,7 +410,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
         children: [
           // Key label
           SizedBox(
-            width: 220,
+            width: sp.sz(220),
             child: Text(
               _fmtKey(widget.keyName),
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -452,6 +457,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
     required ColorScheme cs,
     required ThemeData theme,
   }) {
+    final sp = context.read<UiScaleProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -466,7 +472,7 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
               children: [
                 RotationTransition(
                   turns: _chevronTurns,
-                  child: Icon(Icons.expand_more, size: 16, color: cs.primary),
+                  child: Icon(Icons.expand_more, size: sp.sz(16), color: cs.primary),
                 ),
                 const SizedBox(width: 4),
                 Text(
@@ -510,6 +516,7 @@ class _DictInline extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: map.entries
@@ -521,7 +528,7 @@ class _DictInline extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
-                    width: 160,
+                    width: sp.sz(200),
                     child: Text(
                       e.key,
                       style: theme.textTheme.bodySmall?.copyWith(

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,6 +199,7 @@ class _NodeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     final isSelected = selected == node;
     final isExpanded = expanded.contains(_nodeKey(node));
     final kids = _children(node);
@@ -248,7 +251,7 @@ class _NodeTile extends StatelessWidget {
                               isExpanded
                                   ? Icons.expand_more
                                   : Icons.chevron_right,
-                              size: 16,
+                              size: sp.sz(16),
                               color: mutedColor,
                             )
                           : null,
@@ -258,7 +261,7 @@ class _NodeTile extends StatelessWidget {
                   // Node icon.
                   Icon(
                     _iconFor(type),
-                    size: 15,
+                    size: sp.sz(15),
                     color: isSelected ? cs.primary : cs.onSurfaceVariant,
                   ),
                   const SizedBox(width: 7),
@@ -338,6 +341,7 @@ class _DetailPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     // Collect displayable fields – skip internal/metadata keys and _items.
     final fields = node.entries
@@ -364,7 +368,7 @@ class _DetailPanel extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: cs.primary),
+              Icon(icon, size: sp.sz(22), color: cs.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(

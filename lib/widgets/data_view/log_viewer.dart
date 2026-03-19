@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,6 +143,7 @@ class _LogRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     final isSel = selected == item;
     final name = _formatLogName(item['_name']?.toString() ?? '');
     final source = item['source']?.toString() ?? '';
@@ -159,7 +162,7 @@ class _LogRow extends StatelessWidget {
               // Icon
               Icon(
                 Icons.description_outlined,
-                size: 15,
+                size: sp.sz(15),
                 color: isSel
                     ? cs.primary
                     : (hasContent
@@ -296,6 +299,7 @@ class _ContentPanelState extends State<_ContentPanel> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     final name = _formatLogName(widget.item['_name']?.toString() ?? '');
     final source = widget.item['source']?.toString() ?? '';
@@ -324,7 +328,7 @@ class _ContentPanelState extends State<_ContentPanel> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(Icons.description_outlined, size: 18),
+              Icon(Icons.description_outlined, size: sp.sz(18)),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -368,7 +372,7 @@ class _ContentPanelState extends State<_ContentPanel> {
                     onPressed: _copyContent,
                     icon: Icon(
                       _copied ? Icons.check : Icons.copy_outlined,
-                      size: 15,
+                      size: sp.sz(15),
                     ),
                     label: Text(_copied ? 'Copied' : 'Copy'),
                     style: TextButton.styleFrom(
@@ -405,14 +409,14 @@ class _ContentPanelState extends State<_ContentPanel> {
                       ),
                       prefixIcon: Padding(
                         padding: const EdgeInsets.only(left: 10, right: 6),
-                        child: Icon(Icons.search, size: 15,
+                        child: Icon(Icons.search, size: sp.sz(15),
                             color: cs.onSurfaceVariant),
                       ),
                       prefixIconConstraints: const BoxConstraints(
                           minWidth: 32, minHeight: 32),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(Icons.clear, size: 15),
+                              icon: Icon(Icons.clear, size: sp.sz(15)),
                               onPressed: _searchCtrl.clear,
                               splashRadius: 14,
                             )
@@ -448,7 +452,7 @@ class _ContentPanelState extends State<_ContentPanel> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(Icons.inbox_outlined,
-                          size: 48, color: cs.onSurface.withAlpha(50)),
+                          size: sp.sz(48), color: cs.onSurface.withAlpha(50)),
                       const SizedBox(height: 12),
                       Text(
                         'No log entries',

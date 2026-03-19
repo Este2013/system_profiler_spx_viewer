@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -123,6 +125,7 @@ class _ListPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     // Whether any item provides a leading icon — if so, reserve the gutter.
     final hasLeading = leadingIconBuilder != null;
     return Container(
@@ -161,7 +164,7 @@ class _ListPanel extends StatelessWidget {
                         child: leadingIcon != null
                             ? Icon(
                                 leadingIcon,
-                                size: 16,
+                                size: sp.sz(16),
                                 color: isSel ? cs.primary : cs.onSurfaceVariant,
                               )
                             : null,
@@ -202,7 +205,7 @@ class _ListPanel extends StatelessWidget {
                       const SizedBox(width: 8),
                       Icon(
                         trailingIcon,
-                        size: 15,
+                        size: sp.sz(15),
                         color: mutedColor,
                       ),
                     ],
@@ -239,6 +242,7 @@ class _DetailPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     final name = item['_name']?.toString() ?? 'Unknown';
     final fields = item.entries.where((e) => !isInternalKey(e.key)).toList();
@@ -256,7 +260,7 @@ class _DetailPanel extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: cs.primary),
+              Icon(icon, size: sp.sz(22), color: cs.primary),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(

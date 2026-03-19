@@ -101,6 +101,27 @@ String formatSpxValue(String v) {
       return 'Off';
     case 'spaudio_default':
       return 'Default';
+    // ── Graphics / Displays ──────────────────────────────────────────────────
+    case 'sppci_dt_gpu':
+      return 'GPU';
+    case 'sppci_dt_unknown':
+      return 'Unknown';
+    case 'sppci_pcibus_builtin':
+      return 'Built-In';
+    case 'sppci_pcibus_pcie':
+      return 'PCIe';
+    case 'spdisplays_yes':
+      return 'Yes';
+    case 'spdisplays_no':
+      return 'No';
+    case 'spdisplays_off':
+      return 'Off';
+    case 'spdisplays_on':
+      return 'On';
+    case 'spdisplays_supported':
+      return 'Supported';
+    case 'spdisplays_not_supported':
+      return 'Not Supported';
     default:
       // coreaudio_device_type_xxx → "HDMI", "USB", "Virtual", etc.
       if (v.startsWith('coreaudio_device_type_')) {
@@ -131,6 +152,21 @@ String formatSpxValue(String v) {
       // voice_gender_xxx → strip prefix, title-case remainder
       if (v.startsWith('voice_gender_')) {
         return formatKey(v.substring('voice_gender_'.length));
+      }
+      // sppci_metalfeatureset_metal4gpufamily → "Metal 4 GPU Family"
+      if (v.startsWith('sppci_metalfeatureset_')) {
+        final rest = v.substring('sppci_metalfeatureset_'.length);
+        final m = RegExp(r'^metal(\d+)gpufamily$').firstMatch(rest);
+        if (m != null) return 'Metal ${m[1]} GPU Family';
+        return formatKey(rest);
+      }
+      // sppci_xxx values → strip prefix, title-case
+      if (v.startsWith('sppci_')) {
+        return formatKey(v.substring('sppci_'.length));
+      }
+      // spdisplays_xxx values → strip prefix, title-case
+      if (v.startsWith('spdisplays_')) {
+        return formatKey(v.substring('spdisplays_'.length));
       }
       return v;
   }

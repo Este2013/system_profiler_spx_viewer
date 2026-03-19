@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,6 +79,7 @@ class _BluetoothViewState extends State<BluetoothView> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     // Bluetooth has exactly 1 item whose keys ARE the groups.
     final item =
@@ -101,7 +104,7 @@ class _BluetoothViewState extends State<BluetoothView> {
             decoration: InputDecoration(
               isDense: true,
               hintText: 'Filter fields…',
-              prefixIcon: const Icon(Icons.search, size: 18),
+              prefixIcon: Icon(Icons.search, size: sp.sz(18)),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(color: cs.outlineVariant),
@@ -110,7 +113,7 @@ class _BluetoothViewState extends State<BluetoothView> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               suffixIcon: _filter.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.close, size: 16),
+                      icon: Icon(Icons.close, size: sp.sz(16)),
                       onPressed: () {
                         _filterCtrl.clear();
                         setState(() => _filter = '');
@@ -211,6 +214,7 @@ class _BtGroupSectionState extends State<_BtGroupSection>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     final groupName = _formatGroupName(widget.groupKey);
 
     // ── Build the inner content and compute a visible item count ────────────
@@ -299,7 +303,7 @@ class _BtGroupSectionState extends State<_BtGroupSection>
                     turns: _chevronTurns,
                     child: Icon(
                       Icons.expand_more,
-                      size: 20,
+                      size: sp.sz(20),
                       color: cs.onSurfaceVariant,
                     ),
                   ),
@@ -409,6 +413,7 @@ class _BtDeviceSectionState extends State<_BtDeviceSection>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     final entries = widget.props.entries
         .where((e) => !isInternalKey(e.key))
@@ -432,12 +437,12 @@ class _BtDeviceSectionState extends State<_BtDeviceSection>
                       turns: _chevronTurns,
                       child: Icon(
                         Icons.expand_more,
-                        size: 18,
+                        size: sp.sz(18),
                         color: cs.primary,
                       ),
                     )
                   else
-                    Icon(Icons.bluetooth, size: 18, color: cs.primary),
+                    Icon(Icons.bluetooth, size: sp.sz(18), color: cs.primary),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -497,6 +502,7 @@ class _BtKvRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -504,7 +510,7 @@ class _BtKvRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 200,
+            width: sp.sz(200),
             child: Text(
               _fmtKey(keyName),
               style: theme.textTheme.bodyMedium?.copyWith(

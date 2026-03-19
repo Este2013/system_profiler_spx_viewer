@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/document_provider.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/category_mapping.dart';
 
 class AppSidebar extends StatefulWidget {
@@ -84,6 +85,7 @@ class _FileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(
@@ -91,7 +93,7 @@ class _FileHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.terminal, size: 15, color: cs.primary),
+          Icon(Icons.terminal, size: sp.sz(15), color: cs.primary),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -128,6 +130,7 @@ class _CategoryGroup extends StatelessWidget {
     final provider = context.watch<DocumentProvider>();
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     // Overview sections are hidden from the sub-item list.
     final subItems = allSections
@@ -167,7 +170,7 @@ class _CategoryGroup extends StatelessWidget {
                       children: [
                         Icon(
                           _categoryIcon(category),
-                          size: 13,
+                          size: sp.sz(13),
                           color: overviewActive
                               ? cs.primary
                               : cs.onSurfaceVariant,
@@ -196,7 +199,7 @@ class _CategoryGroup extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(4, 8, 10, 8),
                   child: Icon(
                     isExpanded ? Icons.expand_less : Icons.expand_more,
-                    size: 15,
+                    size: sp.sz(15),
                     color: cs.onSurfaceVariant.withAlpha(160),
                   ),
                 ),

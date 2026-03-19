@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
+import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
 
 /// Displays a list of SPX items as a sortable, filterable table.
@@ -34,8 +36,14 @@ class _ItemsTableState extends State<ItemsTable> {
 
   List<String> get _displayColumns {
     final keys = widget.section.columnKeys;
+    final allItems = widget.section.items;
     final filtered = keys
         .where((k) => !k.startsWith('_') || k == '_name')
+        // Drop columns where every single row has a null or empty-string value.
+        .where((k) => allItems.any((item) {
+              final v = item[k];
+              return v != null && !(v is String && v.isEmpty);
+            }))
         .toList();
     // Limit visible columns for readability
     return filtered.take(_maxColumns).toList();
@@ -95,6 +103,7 @@ class _ItemsTableState extends State<ItemsTable> {
     final items = _processedItems;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
     final total = widget.section.items.length;
 
     return Column(
@@ -111,7 +120,7 @@ class _ItemsTableState extends State<ItemsTable> {
                   decoration: InputDecoration(
                     isDense: true,
                     hintText: 'Filter $total items...',
-                    prefixIcon: const Icon(Icons.search, size: 18),
+                    prefixIcon: Icon(Icons.search, size: sp.sz(18)),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide:
@@ -123,7 +132,7 @@ class _ItemsTableState extends State<ItemsTable> {
                     ),
                     suffixIcon: _filter.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close, size: 16),
+                            icon: Icon(Icons.close, size: sp.sz(16)),
                             onPressed: () {
                               _filterController.clear();
                               setState(() => _filter = '');
@@ -188,7 +197,7 @@ class _ItemsTableState extends State<ItemsTable> {
                               _sortAscending
                                   ? Icons.arrow_upward_rounded
                                   : Icons.arrow_downward_rounded,
-                              size: 13,
+                              size: sp.sz(13),
                               color: colorScheme.primary,
                             ),
                         ],
@@ -202,28 +211,30 @@ class _ItemsTableState extends State<ItemsTable> {
 
         // ── Rows ────────────────────────────────────────────────────────────
         Expanded(
-          child: items.isEmpty
-              ? Center(
-                  child: Text(
-                    'No matching items',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+          child: SelectionArea(
+            child: items.isEmpty
+                ? Center(
+                    child: Text(
+                      'No matching items',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) => Divider(
+                      height: 1,
+                      color: colorScheme.outlineVariant.withAlpha(60),
+                    ),
+                    itemBuilder: (context, i) => _ItemRow(
+                      item: items[i],
+                      columns: columns,
+                      searchQuery:
+                          _filter.isNotEmpty ? _filter : widget.searchQuery,
                     ),
                   ),
-                )
-              : ListView.separated(
-                  itemCount: items.length,
-                  separatorBuilder: (context, index) => Divider(
-                    height: 1,
-                    color: colorScheme.outlineVariant.withAlpha(60),
-                  ),
-                  itemBuilder: (context, i) => _ItemRow(
-                    item: items[i],
-                    columns: columns,
-                    searchQuery:
-                        _filter.isNotEmpty ? _filter : widget.searchQuery,
-                  ),
-                ),
+          ),
         ),
       ],
     );
@@ -269,6 +280,7 @@ class _ItemRowState extends State<_ItemRow> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final sp = context.watch<UiScaleProvider>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -291,7 +303,7 @@ class _ItemRowState extends State<_ItemRow> {
                           _expanded
                               ? Icons.expand_more
                               : Icons.chevron_right,
-                          size: 16,
+                          size: sp.sz(16),
                           color: colorScheme.onSurfaceVariant,
                         )
                       : null,
