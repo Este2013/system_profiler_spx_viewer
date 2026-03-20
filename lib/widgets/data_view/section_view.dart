@@ -14,6 +14,8 @@ import 'bluetooth_view.dart';
 import 'controller_view.dart';
 import 'ethernet_view.dart';
 import 'displays_view.dart';
+import 'hardware_view.dart';
+import 'apple_pay_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -45,6 +47,22 @@ class SectionView extends StatelessWidget {
   }
 
   Widget _buildContent(SpxSection section, String searchQuery) {
+    // Apple Pay (Secure Element) → two-section view matching macOS layout.
+    if (section.dataType == 'SPSecureElementDataType') {
+      final item = section.items.isNotEmpty
+          ? section.items.first
+          : <String, dynamic>{};
+      return ApplePayView(item: item, searchQuery: searchQuery);
+    }
+
+    // Hardware Overview → ordered KV view with macOS-matching labels.
+    if (section.dataType == 'SPHardwareDataType') {
+      final item = section.items.isNotEmpty
+          ? section.items.first
+          : <String, dynamic>{};
+      return HardwareView(item: item, searchQuery: searchQuery);
+    }
+
     // USB host data type → dedicated tree + detail view.
     if (section.dataType == 'SPUSBHostDataType') {
       return UsbTreeView(buses: section.items);
@@ -109,7 +127,11 @@ class SectionView extends StatelessWidget {
       return KvTable(item: only, searchQuery: searchQuery);
     }
     // Multiple items → sortable/filterable table
-    return ItemsTable(section: section, searchQuery: searchQuery);
+    return ItemsTable(
+      section: section,
+      searchQuery: searchQuery,
+      keyFormatter: _keyFormatterFor(section.dataType),
+    );
   }
 }
 
@@ -119,6 +141,8 @@ String Function(String) _keyFormatterFor(String dataType) {
   switch (dataType) {
     case 'SPAudioDataType':
       return formatAudioKey;
+    case 'SPCameraDataType':
+      return formatCameraKey;
     default:
       return formatKey;
   }

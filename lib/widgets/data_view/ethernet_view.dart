@@ -34,6 +34,11 @@ const _kLabels = <String, String>{
   'spethernet_mac_address':           'MAC Address',
   'spethernet_avb_support':           'AVB Support',
   'spethernet_max_link_speed':        'Maximum Link Speed',
+  // Mixed underscore/hyphen variants (actual keys observed in SPX files)
+  'spethernet_pcie_link-speed':       'PCIe Link Speed',
+  'spethernet_pcie_link-width':       'PCIe Link Width',
+  // Mixed-case variant (actual key observed in SPX files)
+  'spethernet_BSD_Device_Name':       'BSD Device Name',
 };
 
 /// Preferred field order (raw key names).
@@ -44,13 +49,13 @@ const _kOrder = [
   'spethernet_subsystem-vendor-id',   'spethernet_subsystem_vendor_id',
   'spethernet_subsystem-id',          'spethernet_subsystem_id',
   'spethernet_revision-id',           'spethernet_revision_id',
-  'spethernet_pcie-link-speed',       'spethernet_pcie_link_speed',
-  'spethernet_pcie-link-width',       'spethernet_pcie_link_width',
-  'spethernet_driver',
-  'spethernet_bsd-device-name',       'spethernet_bsd_device_name',
+  'spethernet_pcie-link-speed',       'spethernet_pcie_link_speed',       'spethernet_pcie_link-speed',
+  'spethernet_pcie-link-width',       'spethernet_pcie_link_width',       'spethernet_pcie_link-width',
+  'spethernet_bsd-device-name',       'spethernet_bsd_device_name',       'spethernet_BSD_Device_Name',
   'spethernet_mac-address',           'spethernet_mac_address',
   'spethernet_avb-support',           'spethernet_avb_support',
   'spethernet_max-link-speed',        'spethernet_max_link_speed',
+  'spethernet_driver',
 ];
 
 /// Human-readable label for an Ethernet key.

@@ -47,6 +47,21 @@ String formatUsbKey(String key) {
   return formatKey(key);
 }
 
+/// Like [formatKey] but strips the `spcamera_` prefix and converts the
+/// common `-id` suffix to " ID", e.g.:
+///   `spcamera_model-id`  → "Model ID"
+///   `spcamera_unique-id` → "Unique ID"
+String formatCameraKey(String key) {
+  String k = key.startsWith('spcamera_') ? key.substring('spcamera_'.length) : key;
+  // "-id" suffix → " ID"  (handles model-id, unique-id, vendor-id, …)
+  if (k.toLowerCase().endsWith('-id')) {
+    final base = k.substring(0, k.length - 3).replaceAll('-', '_');
+    return '${formatKey(base)} ID';
+  }
+  // Other hyphens → treat as word separators
+  return formatKey(k.replaceAll('-', '_'));
+}
+
 /// Like [formatKey] but strips Core Audio field prefixes so that
 /// e.g. `coreaudio_device_manufacturer` → "Manufacturer".
 String formatAudioKey(String key) {
@@ -122,6 +137,23 @@ String formatSpxValue(String v) {
       return 'Supported';
     case 'spdisplays_not_supported':
       return 'Not Supported';
+    // ── Hardware Overview ────────────────────────────────────────────────────
+    case 'activation_lock_enabled':
+      return 'Enabled';
+    case 'activation_lock_disabled':
+      return 'Disabled';
+    // ── Ethernet – bus types ─────────────────────────────────────────────────
+    case 'spethernet_pci_device':
+      return 'PCI';
+    case 'spethernet_pcie_device':
+      return 'PCIe';
+    case 'spethernet_usb_device':
+      return 'USB';
+    case 'spethernet_thunderbolt_device':
+      return 'Thunderbolt';
+    case 'spethernet_builtin':
+    case 'spethernet_built-in':
+      return 'Built-in';
     default:
       // coreaudio_device_type_xxx → "HDMI", "USB", "Virtual", etc.
       if (v.startsWith('coreaudio_device_type_')) {
@@ -167,6 +199,18 @@ String formatSpxValue(String v) {
       // spdisplays_xxx values → strip prefix, title-case
       if (v.startsWith('spdisplays_')) {
         return formatKey(v.substring('spdisplays_'.length));
+      }
+      // ethernet_speed_N → Mb/s or Gb/s  (e.g. 1000 → "1 Gb/s", 2500 → "2.5 Gb/s")
+      if (v.startsWith('ethernet_speed_')) {
+        final mbps = int.tryParse(v.substring('ethernet_speed_'.length));
+        if (mbps != null) {
+          if (mbps < 1000) return '$mbps Mb/s';
+          final gbps = mbps / 1000.0;
+          final label = gbps == gbps.truncateToDouble()
+              ? gbps.toInt().toString()
+              : gbps.toString();
+          return '$label Gb/s';
+        }
       }
       return v;
   }

@@ -9,11 +9,14 @@ import '../../utils/key_formatter.dart';
 class ItemsTable extends StatefulWidget {
   final SpxSection section;
   final String searchQuery;
+  /// Optional key label formatter. Defaults to [formatKey].
+  final String Function(String) keyFormatter;
 
   const ItemsTable({
     super.key,
     required this.section,
     this.searchQuery = '',
+    this.keyFormatter = formatKey,
   });
 
   @override
@@ -182,7 +185,7 @@ class _ItemsTableState extends State<ItemsTable> {
                         children: [
                           Expanded(
                             child: Text(
-                              formatKey(col),
+                              widget.keyFormatter(col),
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: _sortColumn == col
@@ -232,6 +235,7 @@ class _ItemsTableState extends State<ItemsTable> {
                       columns: columns,
                       searchQuery:
                           _filter.isNotEmpty ? _filter : widget.searchQuery,
+                      keyFormatter: widget.keyFormatter,
                     ),
                   ),
           ),
@@ -257,11 +261,13 @@ class _ItemRow extends StatefulWidget {
   final Map<String, dynamic> item;
   final List<String> columns;
   final String searchQuery;
+  final String Function(String) keyFormatter;
 
   const _ItemRow({
     required this.item,
     required this.columns,
     this.searchQuery = '',
+    this.keyFormatter = formatKey,
   });
 
   @override
@@ -339,6 +345,7 @@ class _ItemRowState extends State<_ItemRow> {
               subItems: (widget.item['_items'] as List)
                   .whereType<Map<String, dynamic>>()
                   .toList(),
+              keyFormatter: widget.keyFormatter,
             ),
           ),
       ],
@@ -381,8 +388,9 @@ class _ItemRowState extends State<_ItemRow> {
 
 class _SubItemsView extends StatelessWidget {
   final List<Map<String, dynamic>> subItems;
+  final String Function(String) keyFormatter;
 
-  const _SubItemsView({required this.subItems});
+  const _SubItemsView({required this.subItems, required this.keyFormatter});
 
   @override
   Widget build(BuildContext context) {
@@ -406,7 +414,7 @@ class _SubItemsView extends StatelessWidget {
                           SizedBox(
                             width: 180,
                             child: Text(
-                              formatKey(e.key),
+                              keyFormatter(e.key),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w500,
