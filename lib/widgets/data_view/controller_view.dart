@@ -238,9 +238,13 @@ class _ControllerViewState extends State<ControllerView> {
     if (rows.isNotEmpty) rows.add(_divider(cs));
     rows.add(_SectionHeader(label: 'Boot Policy', depth: 0, indent: 0, theme: theme, cs: cs));
 
-    // "Secure Boot: <value>" — KV row at depth 1
+    // All boot-policy leaf rows (Secure Boot + sub-properties) sit at depth 1,
+    // matching the macOS System Information layout where they are all peers
+    // under the "Boot Policy" header.
     final indent1 = sp.sz(_indentStep);
     final keyW1 = (sp.sz(_keyBase) - indent1).clamp(60.0, double.infinity);
+
+    // Secure Boot value
     final secureBootVal = item['ibridge_secure_boot'];
     if (secureBootVal != null) {
       final label = 'Secure Boot';
@@ -251,18 +255,15 @@ class _ControllerViewState extends State<ControllerView> {
       }
     }
 
-    // Secure Boot sub-properties at depth 2
-    final indent2 = sp.sz(_indentStep * 2);
-    final keyW2 = (sp.sz(_keyBase) - indent2).clamp(60.0, double.infinity);
-
+    // Secure Boot sub-properties — same indent level as Secure Boot itself
     // Known order first
     for (final key in _kSbOrder) {
       if (!item.containsKey(key)) continue;
       final label = _labelFor(key);
       final val = _fmtVal(item[key]);
       if (q.isNotEmpty && !_matches(q, label, val)) continue;
-      rows.add(_LeafRow(label: label, value: val, indent: indent2,
-          keyWidth: keyW2, searchQuery: q, theme: theme, cs: cs));
+      rows.add(_LeafRow(label: label, value: val, indent: indent1,
+          keyWidth: keyW1, searchQuery: q, theme: theme, cs: cs));
     }
 
     // Any remaining ibridge_sb_* not in known order
@@ -272,8 +273,8 @@ class _ControllerViewState extends State<ControllerView> {
       final label = _labelFor(e.key);
       final val = _fmtVal(e.value);
       if (q.isNotEmpty && !_matches(q, label, val)) continue;
-      rows.add(_LeafRow(label: label, value: val, indent: indent2,
-          keyWidth: keyW2, searchQuery: q, theme: theme, cs: cs));
+      rows.add(_LeafRow(label: label, value: val, indent: indent1,
+          keyWidth: keyW1, searchQuery: q, theme: theme, cs: cs));
     }
 
     return rows;

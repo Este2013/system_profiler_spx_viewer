@@ -285,11 +285,13 @@ class _SectionTile extends StatelessWidget {
                 ),
                 if (matchCount > 0)
                   _MatchBadge(count: matchCount)
-                else if (section.isEmpty)
+                else if (!section.isEmpty)
                   Icon(
                     Icons.circle,
-                    size: 5,
-                    color: cs.onSurface.withAlpha(50),
+                    size: 6,
+                    color: isSelected
+                        ? cs.onPrimaryContainer.withAlpha(140)
+                        : cs.primary.withAlpha(160),
                   ),
               ],
             ),

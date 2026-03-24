@@ -43,11 +43,17 @@ class DocumentProvider extends ChangeNotifier {
     try {
       final doc = await SpxParser.parseFile(path);
       _document = doc;
-      // Auto-select first non-empty section
-      _selectedSection = doc.sections
-          .where((s) => !s.isEmpty)
-          .cast<SpxSection?>()
-          .firstOrNull;
+      // Prefer Hardware Overview as the default view; fall back to the first
+      // non-empty section if the file has no hardware data.
+      _selectedSection =
+          doc.sections
+              .where((s) => s.dataType == 'SPHardwareDataType' && !s.isEmpty)
+              .cast<SpxSection?>()
+              .firstOrNull ??
+          doc.sections
+              .where((s) => !s.isEmpty)
+              .cast<SpxSection?>()
+              .firstOrNull;
       _globalSearchQuery = '';
       _isSearchActive = false;
     } catch (e, stackTrace) {

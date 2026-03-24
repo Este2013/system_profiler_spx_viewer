@@ -16,6 +16,8 @@ import 'ethernet_view.dart';
 import 'displays_view.dart';
 import 'hardware_view.dart';
 import 'apple_pay_view.dart';
+import 'power_view.dart';
+import 'storage_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -92,6 +94,16 @@ class SectionView extends StatelessWidget {
     // Graphics / Displays → GPU sections with nested per-display collapsibles.
     if (section.dataType == 'SPDisplaysDataType') {
       return DisplaysView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Storage → table with byte-formatted columns + row-selection detail panel.
+    if (section.dataType == 'SPStorageDataType') {
+      return StorageView(section: section, searchQuery: searchQuery);
+    }
+
+    // Power → hierarchical section/sub-section view matching macOS layout.
+    if (section.dataType == 'SPPowerDataType') {
+      return PowerView(items: section.items, searchQuery: searchQuery);
     }
 
     // Controller (iBridge / T2 / Apple Silicon) → hierarchical indented tree.
@@ -219,6 +231,74 @@ IconData? Function(Map<String, dynamic>)? _trailingIconBuilderFor(String dataTyp
 
 // ---------------------------------------------------------------------------
 
+IconData _iconForSection(String dataType) {
+  switch (dataType) {
+    // ── Hardware ─────────────────────────────────────────────────────────────
+    case 'SPHardwareDataType':          return Icons.computer_outlined;
+    case 'SPSecureElementDataType':     return Icons.contactless_outlined;
+    case 'SPAudioDataType':             return Icons.headset_outlined;
+    case 'SPBluetoothDataType':         return Icons.bluetooth;
+    case 'SPCameraDataType':            return Icons.camera_alt_outlined;
+    case 'SPCardReaderDataType':        return Icons.sd_card_outlined;
+    case 'SPiBridgeDataType':           return Icons.developer_board_outlined;
+    case 'SPDiagnosticsDataType':       return Icons.fact_check_outlined;
+    case 'SPDiscBurningDataType':       return Icons.album_outlined;
+    case 'SPEthernetDataType':          return Icons.settings_ethernet;
+    case 'SPFibreChannelDataType':      return Icons.cable_outlined;
+    case 'SPDisplaysDataType':          return Icons.monitor_outlined;
+    case 'SPMemoryDataType':            return Icons.memory_outlined;
+    case 'SPNVMeDataType':              return Icons.drive_eta_outlined;
+    case 'SPPCIDataType':               return Icons.extension_outlined;
+    case 'SPParallelATADataType':
+    case 'SPParallelSCSIDataType':
+    case 'SPSASDataType':
+    case 'SPSerialATADataType':         return Icons.storage_outlined;
+    case 'SPPowerDataType':             return Icons.bolt_outlined;
+    case 'SPPrintersDataType':          return Icons.print_outlined;
+    case 'SPSPIDataType':               return Icons.developer_board_outlined;
+    case 'SPStorageDataType':           return Icons.storage_outlined;
+    case 'SPThunderboltDataType':       return Icons.bolt;
+    case 'SPUSB4DataType':
+    case 'SPUSBDataType':
+    case 'SPUSBHostDataType':           return Icons.usb_outlined;
+    case 'SPFireWireDataType':          return Icons.cable_outlined;
+    // ── Network ───────────────────────────────────────────────────────────────
+    case 'SPNetworkDataType':           return Icons.router_outlined;
+    case 'SPFirewallDataType':          return Icons.security_outlined;
+    case 'SPNetworkLocationDataType':   return Icons.place_outlined;
+    case 'SPNetworkVolumeDataType':     return Icons.folder_shared_outlined;
+    case 'SPAirPortDataType':           return Icons.wifi;
+    case 'SPWWANDataType':              return Icons.signal_cellular_alt_outlined;
+    case 'SPModemDataType':             return Icons.router_outlined;
+    // ── Software ──────────────────────────────────────────────────────────────
+    case 'SPSoftwareDataType':          return Icons.widgets_outlined;
+    case 'SPUniversalAccessDataType':   return Icons.accessibility_new_outlined;
+    case 'SPApplicationsDataType':      return Icons.apps_outlined;
+    case 'SPDeveloperToolsDataType':    return Icons.code_outlined;
+    case 'SPDisabledSoftwareDataType':
+    case 'SPLegacySoftwareDataType':    return Icons.block_outlined;
+    case 'SPExtensionsDataType':        return Icons.extension_outlined;
+    case 'SPFontsDataType':             return Icons.font_download_outlined;
+    case 'SPFrameworksDataType':        return Icons.view_in_ar_outlined;
+    case 'SPInstallHistoryDataType':    return Icons.history_outlined;
+    case 'SPInternationalDataType':     return Icons.language_outlined;
+    case 'SPLogsDataType':              return Icons.description_outlined;
+    case 'SPManagedClientDataType':     return Icons.manage_accounts_outlined;
+    case 'SPPrefPaneDataType':          return Icons.tune_outlined;
+    case 'SPPrinterSoftwareDataType':
+    case 'SPPrintersSoftwareDataType':  return Icons.print_outlined;
+    case 'SPConfigurationProfileDataType': return Icons.assignment_outlined;
+    case 'SPRawCameraDataType':         return Icons.camera_outlined;
+    case 'SPRosettaSoftwareDataType':   return Icons.translate_outlined;
+    case 'SPSmartCardsDataType':        return Icons.credit_card_outlined;
+    case 'SPStartupItemDataType':       return Icons.play_circle_outline;
+    case 'SPSyncServicesDataType':      return Icons.sync_outlined;
+    default:                            return Icons.info_outlined;
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 class _SectionHeader extends StatelessWidget {
   final SpxSection section;
 
@@ -228,6 +308,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final icon = _iconForSection(section.dataType);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
@@ -237,6 +318,16 @@ class _SectionHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
+          Container(
+            width: 36,
+            height: 36,
+            margin: const EdgeInsets.only(right: 14),
+            decoration: BoxDecoration(
+              color: colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 20, color: colorScheme.onSecondaryContainer),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

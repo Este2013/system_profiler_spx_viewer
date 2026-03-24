@@ -142,6 +142,9 @@ String formatSpxValue(String v) {
       return 'Enabled';
     case 'activation_lock_disabled':
       return 'Disabled';
+    // ── Memory ───────────────────────────────────────────────────────────────
+    case 'sp_memory_data_type':
+      return 'Memory';
     // ── Ethernet – bus types ─────────────────────────────────────────────────
     case 'spethernet_pci_device':
       return 'PCI';
