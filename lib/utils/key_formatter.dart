@@ -145,6 +145,29 @@ String formatSpxValue(String v) {
     // ── Memory ───────────────────────────────────────────────────────────────
     case 'sp_memory_data_type':
       return 'Memory';
+    // ── Firewall – global state ──────────────────────────────────────────────
+    case 'spfirewall_globalstate_off':
+      return 'Off';
+    case 'spfirewall_globalstate_allow_all':
+      return 'Allow all incoming connections';
+    case 'spfirewall_globalstate_block_all':
+      return 'Block all incoming connections';
+    case 'spfirewall_globalstate_on':
+      return 'On';
+    // ── Firewall – per-app rules ──────────────────────────────────────────────
+    case 'spfirewall_allow_all':
+      return 'Allow all connections';
+    case 'spfirewall_block_all':
+      return 'Block all connections';
+    case 'spfirewall_limit':
+      return 'Allow specific services';
+    // ── Firewall – logging options ───────────────────────────────────────────
+    case 'spfirewall_loggingoption_throttled':
+      return 'Throttled';
+    case 'spfirewall_loggingoption_brief':
+      return 'Brief';
+    case 'spfirewall_loggingoption_detail':
+      return 'Detailed';
     // ── Ethernet – bus types ─────────────────────────────────────────────────
     case 'spethernet_pci_device':
       return 'PCI';
@@ -202,6 +225,10 @@ String formatSpxValue(String v) {
       // spdisplays_xxx values → strip prefix, title-case
       if (v.startsWith('spdisplays_')) {
         return formatKey(v.substring('spdisplays_'.length));
+      }
+      // spfirewall_xxx values → strip prefix, title-case (catch-all for unknown variants)
+      if (v.startsWith('spfirewall_')) {
+        return formatKey(v.substring('spfirewall_'.length));
       }
       // ethernet_speed_N → Mb/s or Gb/s  (e.g. 1000 → "1 Gb/s", 2500 → "2.5 Gb/s")
       if (v.startsWith('ethernet_speed_')) {

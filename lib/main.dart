@@ -23,13 +23,20 @@ class SpxViewerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DocumentProvider()),
         ChangeNotifierProvider(create: (_) => UiScaleProvider()),
       ],
-      child: MaterialApp(
-        title: 'SPX Viewer',
-        debugShowCheckedModeBanner: false,
-        theme: _buildTheme(Brightness.light),
-        darkTheme: _buildTheme(Brightness.dark),
-        themeMode: ThemeMode.system,
-        home: _AppRoot(initialFilePath: initialFilePath),
+      child: Builder(
+        builder: (ctx) {
+          final themeMode = ctx.select<UiScaleProvider, ThemeMode>(
+            (sp) => sp.themeMode,
+          );
+          return MaterialApp(
+            title: 'SPX Viewer',
+            debugShowCheckedModeBanner: false,
+            theme: _buildTheme(Brightness.light),
+            darkTheme: _buildTheme(Brightness.dark),
+            themeMode: themeMode,
+            home: _AppRoot(initialFilePath: initialFilePath),
+          );
+        },
       ),
     );
   }
@@ -109,6 +116,15 @@ class _AppRootState extends State<_AppRoot> {
       sp.reset();
       return true;
     }
+    if (key == LogicalKeyboardKey.keyO) {
+      final dp = context.read<DocumentProvider>();
+      if (HardwareKeyboard.instance.isShiftPressed) {
+        dp.openFilePickerNewInstance();
+      } else {
+        dp.openFilePicker();
+      }
+      return true;
+    }
     return false;
   }
 
@@ -126,12 +142,11 @@ class _AppRootState extends State<_AppRoot> {
           child: const DropOverlay(child: HomeScreen()),
         ),
 
-        // Floating zoom pill — lives outside the scaled MediaQuery so that
-        // the slider itself doesn't grow/shrink with the rest of the UI.
+        // Floating appearance controls — live outside the scaled MediaQuery.
         const Positioned(
           right: 16,
           bottom: 16,
-          child: _ScaleSlider(),
+          child: _AppearanceBar(),
         ),
       ],
     );
@@ -232,6 +247,69 @@ class _ScaleSlider extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Appearance bar (zoom + theme) ────────────────────────────────────────────
+
+class _AppearanceBar extends StatelessWidget {
+  const _AppearanceBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: const [
+        _ScaleSlider(),
+        SizedBox(width: 8),
+        _ThemeButton(),
+      ],
+    );
+  }
+}
+
+// ── Theme toggle button ───────────────────────────────────────────────────────
+
+class _ThemeButton extends StatelessWidget {
+  const _ThemeButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final sp = context.watch<UiScaleProvider>();
+    final cs = Theme.of(context).colorScheme;
+
+    final (IconData icon, String tooltip) = switch (sp.themeMode) {
+      ThemeMode.system => (
+          Icons.brightness_auto_outlined,
+          'Appearance: System  (click → Light)',
+        ),
+      ThemeMode.light => (
+          Icons.light_mode_outlined,
+          'Appearance: Light  (click → Dark)',
+        ),
+      ThemeMode.dark => (
+          Icons.dark_mode_outlined,
+          'Appearance: Dark  (click → System)',
+        ),
+    };
+
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        elevation: 3,
+        shape: const CircleBorder(),
+        color: cs.surfaceContainerHighest,
+        child: InkWell(
+          onTap: sp.cycleTheme,
+          customBorder: const CircleBorder(),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Icon(icon, size: 20, color: cs.onSurfaceVariant),
+          ),
         ),
       ),
     );

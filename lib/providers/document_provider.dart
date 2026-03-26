@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/spx_document.dart';
@@ -115,6 +116,18 @@ class DocumentProvider extends ChangeNotifier {
   Future<bool> exportJson() async {
     if (_document == null) return false;
     return JsonExporter.exportDocument(_document!);
+  }
+
+  Future<void> openFilePickerNewInstance() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['spx'],
+      dialogTitle: 'Open SPX Report in New Window',
+    );
+    if (result != null && result.files.single.path != null) {
+      await Process.start(
+          Platform.resolvedExecutable, [result.files.single.path!]);
+    }
   }
 
   void clearError() {

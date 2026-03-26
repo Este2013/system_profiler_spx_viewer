@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
@@ -19,6 +21,8 @@ import 'apple_pay_view.dart';
 import 'power_view.dart';
 import 'storage_view.dart';
 import 'thunderbolt_tree_view.dart';
+import 'network_overview_view.dart';
+import 'firewall_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -52,17 +56,13 @@ class SectionView extends StatelessWidget {
   Widget _buildContent(SpxSection section, String searchQuery) {
     // Apple Pay (Secure Element) → two-section view matching macOS layout.
     if (section.dataType == 'SPSecureElementDataType') {
-      final item = section.items.isNotEmpty
-          ? section.items.first
-          : <String, dynamic>{};
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
       return ApplePayView(item: item, searchQuery: searchQuery);
     }
 
     // Hardware Overview → ordered KV view with macOS-matching labels.
     if (section.dataType == 'SPHardwareDataType') {
-      final item = section.items.isNotEmpty
-          ? section.items.first
-          : <String, dynamic>{};
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
       return HardwareView(item: item, searchQuery: searchQuery);
     }
 
@@ -98,9 +98,19 @@ class SectionView extends StatelessWidget {
     }
 
     // Thunderbolt / USB4 → two-pane tree + detail view.
-    if (section.dataType == 'SPThunderboltDataType' ||
-        section.dataType == 'SPUSB4DataType') {
+    if (section.dataType == 'SPThunderboltDataType' || section.dataType == 'SPUSB4DataType') {
       return ThunderboltTreeView(items: section.items);
+    }
+
+    // Firewall → hierarchical indented view matching macOS layout.
+    if (section.dataType == 'SPFirewallDataType') {
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
+      return FirewallView(item: item, searchQuery: searchQuery);
+    }
+
+    // Network → table with scalar columns + row-selection recursive detail panel.
+    if (section.dataType == 'SPNetworkDataType') {
+      return NetworkOverviewView(section: section, searchQuery: searchQuery);
     }
 
     // Storage → table with byte-formatted columns + row-selection detail panel.
@@ -115,9 +125,7 @@ class SectionView extends StatelessWidget {
 
     // Controller (iBridge / T2 / Apple Silicon) → hierarchical indented tree.
     if (section.dataType == 'SPiBridgeDataType') {
-      final item = section.items.isNotEmpty
-          ? section.items.first
-          : <String, dynamic>{};
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
       return ControllerView(item: item, searchQuery: searchQuery);
     }
 
@@ -241,67 +249,186 @@ IconData? Function(Map<String, dynamic>)? _trailingIconBuilderFor(String dataTyp
 IconData _iconForSection(String dataType) {
   switch (dataType) {
     // ── Hardware ─────────────────────────────────────────────────────────────
-    case 'SPHardwareDataType':          return Icons.computer_outlined;
-    case 'SPSecureElementDataType':     return Icons.contactless_outlined;
-    case 'SPAudioDataType':             return Icons.headset_outlined;
-    case 'SPBluetoothDataType':         return Icons.bluetooth;
-    case 'SPCameraDataType':            return Icons.camera_alt_outlined;
-    case 'SPCardReaderDataType':        return Icons.sd_card_outlined;
-    case 'SPiBridgeDataType':           return Icons.developer_board_outlined;
-    case 'SPDiagnosticsDataType':       return Icons.fact_check_outlined;
-    case 'SPDiscBurningDataType':       return Icons.album_outlined;
-    case 'SPEthernetDataType':          return Icons.settings_ethernet;
-    case 'SPFibreChannelDataType':      return Icons.cable_outlined;
-    case 'SPDisplaysDataType':          return Icons.monitor_outlined;
-    case 'SPMemoryDataType':            return Icons.memory_outlined;
-    case 'SPNVMeDataType':              return Icons.drive_eta_outlined;
-    case 'SPPCIDataType':               return Icons.extension_outlined;
+    case 'SPHardwareDataType':
+      return Icons.computer_outlined;
+    case 'SPSecureElementDataType':
+      return Icons.contactless_outlined;
+    case 'SPAudioDataType':
+      return Icons.headset_outlined;
+    case 'SPBluetoothDataType':
+      return Icons.bluetooth;
+    case 'SPCameraDataType':
+      return Icons.camera_alt_outlined;
+    case 'SPCardReaderDataType':
+      return Icons.sd_card_outlined;
+    case 'SPiBridgeDataType':
+      return Icons.developer_board_outlined;
+    case 'SPDiagnosticsDataType':
+      return Icons.fact_check_outlined;
+    case 'SPDiscBurningDataType':
+      return Icons.album_outlined;
+    case 'SPEthernetDataType':
+      return Icons.settings_ethernet;
+    case 'SPFibreChannelDataType':
+      return Icons.cable_outlined;
+    case 'SPDisplaysDataType':
+      return Icons.monitor_outlined;
+    case 'SPMemoryDataType':
+      return Icons.memory_outlined;
+    case 'SPNVMeDataType':
+      return Icons.drive_eta_outlined;
+    case 'SPPCIDataType':
+      return Icons.extension_outlined;
     case 'SPParallelATADataType':
     case 'SPParallelSCSIDataType':
     case 'SPSASDataType':
-    case 'SPSerialATADataType':         return Icons.storage_outlined;
-    case 'SPPowerDataType':             return Icons.bolt_outlined;
-    case 'SPPrintersDataType':          return Icons.print_outlined;
-    case 'SPSPIDataType':               return Icons.developer_board_outlined;
-    case 'SPStorageDataType':           return Icons.storage_outlined;
-    case 'SPThunderboltDataType':       return Icons.bolt;
+    case 'SPSerialATADataType':
+      return Icons.storage_outlined;
+    case 'SPPowerDataType':
+      return Icons.bolt_outlined;
+    case 'SPPrintersDataType':
+      return Icons.print_outlined;
+    case 'SPSPIDataType':
+      return Icons.developer_board_outlined;
+    case 'SPStorageDataType':
+      return Icons.storage_outlined;
+    case 'SPThunderboltDataType':
+      return Icons.bolt;
     case 'SPUSB4DataType':
     case 'SPUSBDataType':
-    case 'SPUSBHostDataType':           return Icons.usb_outlined;
-    case 'SPFireWireDataType':          return Icons.cable_outlined;
+    case 'SPUSBHostDataType':
+      return Icons.usb_outlined;
+    case 'SPFireWireDataType':
+      return Icons.cable_outlined;
     // ── Network ───────────────────────────────────────────────────────────────
-    case 'SPNetworkDataType':           return Icons.router_outlined;
-    case 'SPFirewallDataType':          return Icons.security_outlined;
-    case 'SPNetworkLocationDataType':   return Icons.place_outlined;
-    case 'SPNetworkVolumeDataType':     return Icons.folder_shared_outlined;
-    case 'SPAirPortDataType':           return Icons.wifi;
-    case 'SPWWANDataType':              return Icons.signal_cellular_alt_outlined;
-    case 'SPModemDataType':             return Icons.router_outlined;
+    case 'SPNetworkDataType':
+      return Icons.router_outlined;
+    case 'SPFirewallDataType':
+      return Icons.security_outlined;
+    case 'SPNetworkLocationDataType':
+      return Icons.place_outlined;
+    case 'SPNetworkVolumeDataType':
+      return Icons.folder_shared_outlined;
+    case 'SPAirPortDataType':
+      return Icons.wifi;
+    case 'SPWWANDataType':
+      return Icons.signal_cellular_alt_outlined;
+    case 'SPModemDataType':
+      return Icons.router_outlined;
     // ── Software ──────────────────────────────────────────────────────────────
-    case 'SPSoftwareDataType':          return Icons.widgets_outlined;
-    case 'SPUniversalAccessDataType':   return Icons.accessibility_new_outlined;
-    case 'SPApplicationsDataType':      return Icons.apps_outlined;
-    case 'SPDeveloperToolsDataType':    return Icons.code_outlined;
+    case 'SPSoftwareDataType':
+      return Icons.widgets_outlined;
+    case 'SPUniversalAccessDataType':
+      return Icons.accessibility_new_outlined;
+    case 'SPApplicationsDataType':
+      return Icons.apps_outlined;
+    case 'SPDeveloperToolsDataType':
+      return Icons.code_outlined;
     case 'SPDisabledSoftwareDataType':
-    case 'SPLegacySoftwareDataType':    return Icons.block_outlined;
-    case 'SPExtensionsDataType':        return Icons.extension_outlined;
-    case 'SPFontsDataType':             return Icons.font_download_outlined;
-    case 'SPFrameworksDataType':        return Icons.view_in_ar_outlined;
-    case 'SPInstallHistoryDataType':    return Icons.history_outlined;
-    case 'SPInternationalDataType':     return Icons.language_outlined;
-    case 'SPLogsDataType':              return Icons.description_outlined;
-    case 'SPManagedClientDataType':     return Icons.manage_accounts_outlined;
-    case 'SPPrefPaneDataType':          return Icons.tune_outlined;
+    case 'SPLegacySoftwareDataType':
+      return Icons.block_outlined;
+    case 'SPExtensionsDataType':
+      return Icons.extension_outlined;
+    case 'SPFontsDataType':
+      return Icons.font_download_outlined;
+    case 'SPFrameworksDataType':
+      return Icons.view_in_ar_outlined;
+    case 'SPInstallHistoryDataType':
+      return Icons.history_outlined;
+    case 'SPInternationalDataType':
+      return Icons.language_outlined;
+    case 'SPLogsDataType':
+      return Icons.description_outlined;
+    case 'SPManagedClientDataType':
+      return Icons.manage_accounts_outlined;
+    case 'SPPrefPaneDataType':
+      return Icons.tune_outlined;
     case 'SPPrinterSoftwareDataType':
-    case 'SPPrintersSoftwareDataType':  return Icons.print_outlined;
-    case 'SPConfigurationProfileDataType': return Icons.assignment_outlined;
-    case 'SPRawCameraDataType':         return Icons.camera_outlined;
-    case 'SPRosettaSoftwareDataType':   return Icons.translate_outlined;
-    case 'SPSmartCardsDataType':        return Icons.credit_card_outlined;
-    case 'SPStartupItemDataType':       return Icons.play_circle_outline;
-    case 'SPSyncServicesDataType':      return Icons.sync_outlined;
-    default:                            return Icons.info_outlined;
+    case 'SPPrintersSoftwareDataType':
+      return Icons.print_outlined;
+    case 'SPConfigurationProfileDataType':
+      return Icons.assignment_outlined;
+    case 'SPRawCameraDataType':
+      return Icons.camera_outlined;
+    case 'SPRosettaSoftwareDataType':
+      return Icons.translate_outlined;
+    case 'SPSmartCardsDataType':
+      return Icons.credit_card_outlined;
+    case 'SPStartupItemDataType':
+      return Icons.play_circle_outline;
+    case 'SPSyncServicesDataType':
+      return Icons.sync_outlined;
+    default:
+      return Icons.info_outlined;
   }
+}
+
+// ---------------------------------------------------------------------------
+
+enum _CopyFormat { json, text }
+
+/// Serialises [section] to a pretty-printed JSON string.
+String _sectionToJson(SpxSection section) {
+  dynamic sanitize(dynamic v) {
+    if (v is DateTime) return v.toIso8601String();
+    if (v is Map) {
+      return (v as Map).map((k, v2) => MapEntry(k.toString(), sanitize(v2)));
+    }
+    if (v is List) return (v as List).map(sanitize).toList();
+    return v;
+  }
+
+  return const JsonEncoder.withIndent('  ').convert(sanitize(section.toJson()));
+}
+
+/// Serialises [section] to a human-readable plain-text string.
+String _sectionToText(SpxSection section) {
+  final buf = StringBuffer();
+  buf.writeln('${section.displayName}:');
+  buf.writeln();
+
+  void writeMap(Map<String, dynamic> m, int depth) {
+    final indent = '  ' * depth;
+    for (final e in m.entries) {
+      if (isInternalKey(e.key)) continue;
+      final key = formatKey(e.key);
+      final v = e.value;
+      if (v is Map) {
+        buf.writeln('$indent$key:');
+        writeMap(
+          Map<String, dynamic>.fromEntries(
+            (v as Map).entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
+          ),
+          depth + 1,
+        );
+      } else if (v is List) {
+        buf.writeln('$indent$key:');
+        for (final item in v as List) {
+          if (item is Map) {
+            writeMap(
+              Map<String, dynamic>.fromEntries(
+                (item as Map).entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
+              ),
+              depth + 1,
+            );
+          } else if (item != null) {
+            buf.writeln('$indent  ${formatSpxValue(item.toString())}');
+          }
+        }
+      } else if (v is bool) {
+        buf.writeln('$indent$key: ${v ? 'Yes' : 'No'}');
+      } else if (v != null) {
+        buf.writeln('$indent$key: ${formatSpxValue(v.toString())}');
+      }
+    }
+  }
+
+  for (int i = 0; i < section.items.length; i++) {
+    writeMap(section.items[i], 0);
+    if (section.items.length > 1 && i < section.items.length - 1) buf.writeln();
+  }
+
+  return buf.toString().trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -324,11 +451,12 @@ class _SectionHeader extends StatelessWidget {
         border: Border(bottom: BorderSide(color: colorScheme.outlineVariant, width: 0.5)),
       ),
       child: Row(
+        spacing: 8,
         children: [
           Container(
             width: 36,
             height: 36,
-            margin: const EdgeInsets.only(right: 14),
+            margin: const EdgeInsets.only(right: 6),
             decoration: BoxDecoration(
               color: colorScheme.secondaryContainer,
               borderRadius: BorderRadius.circular(9),
@@ -347,6 +475,42 @@ class _SectionHeader extends StatelessWidget {
                   ),
               ],
             ),
+          ),
+
+          // Copy section data button
+          PopupMenuButton<_CopyFormat>(
+            padding: EdgeInsets.zero,
+            icon: Icon(
+              Icons.copy_outlined,
+              size: 16,
+              color: colorScheme.onSurfaceVariant.withAlpha(180),
+            ),
+            tooltip: 'Copy section data',
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _CopyFormat.json,
+                child: Text('Copy as JSON'),
+              ),
+              PopupMenuItem(
+                value: _CopyFormat.text,
+                child: Text('Copy as plain text'),
+              ),
+            ],
+            onSelected: (format) async {
+              final text = format == _CopyFormat.json ? _sectionToJson(section) : _sectionToText(section);
+              await Clipboard.setData(ClipboardData(text: text));
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${section.displayName} copied as '
+                      '${format == _CopyFormat.json ? 'JSON' : 'plain text'}',
+                    ),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
           ),
           if (!section.isEmpty) _CountBadge(count: section.items.length, label: section.items.length == 1 ? 'item' : 'items', colorScheme: colorScheme, theme: theme),
         ],
