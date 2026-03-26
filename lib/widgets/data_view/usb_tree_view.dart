@@ -30,6 +30,32 @@ String _nodeKey(Map<String, dynamic> node) {
 String _nodeName(Map<String, dynamic> node) =>
     node['_name']?.toString() ?? 'Unknown Device';
 
+/// Returns true when the node represents a removable device
+/// (Hardware Type = Removable in macOS System Information).
+/// Covers all key-name variants observed across SPX file versions.
+bool _isRemovable(Map<String, dynamic> node) {
+  // Explicit known keys first — fast path.
+  const _candidateKeys = [
+    'USBDeviceKeyHardwareType',
+    'USBDeviceKeyDeviceHardwareType',
+    'device_hardware_type',
+    'hardware_type',
+    'deviceHardwareType',
+  ];
+  for (final key in _candidateKeys) {
+    final v = node[key];
+    if (v != null && v.toString().toLowerCase() == 'removable') return true;
+  }
+  // Broad fallback: any key whose name contains both "hardware" and "type".
+  for (final e in node.entries) {
+    final lk = e.key.toLowerCase();
+    if (lk.contains('hardware') && lk.contains('type')) {
+      if (e.value?.toString().toLowerCase() == 'removable') return true;
+    }
+  }
+  return false;
+}
+
 /// Returns the direct children of a node (the `_items` list).
 List<Map<String, dynamic>> _children(Map<String, dynamic> node) {
   final items = node['_items'];
@@ -295,6 +321,22 @@ class _NodeTile extends StatelessWidget {
                       ),
                     ),
                   ),
+
+                  // Removable-device indicator.
+                  if (_isRemovable(node))
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: Tooltip(
+                        message: 'Removable',
+                        child: Icon(
+                          Icons.eject_outlined,
+                          size: sp.sz(14),
+                          color: isSelected
+                              ? cs.onPrimaryContainer.withAlpha(180)
+                              : cs.onSurfaceVariant.withAlpha(160),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -18,6 +18,7 @@ import 'hardware_view.dart';
 import 'apple_pay_view.dart';
 import 'power_view.dart';
 import 'storage_view.dart';
+import 'thunderbolt_tree_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -94,6 +95,12 @@ class SectionView extends StatelessWidget {
     // Graphics / Displays → GPU sections with nested per-display collapsibles.
     if (section.dataType == 'SPDisplaysDataType') {
       return DisplaysView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Thunderbolt / USB4 → two-pane tree + detail view.
+    if (section.dataType == 'SPThunderboltDataType' ||
+        section.dataType == 'SPUSB4DataType') {
+      return ThunderboltTreeView(items: section.items);
     }
 
     // Storage → table with byte-formatted columns + row-selection detail panel.
