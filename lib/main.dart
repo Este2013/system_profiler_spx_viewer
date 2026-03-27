@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'providers/document_provider.dart';
 import 'providers/ui_scale_provider.dart';
+import 'providers/split_pane_provider.dart';
 import 'screens/home_screen.dart';
 import 'widgets/drop_overlay.dart';
 
@@ -22,6 +23,7 @@ class SpxViewerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => DocumentProvider()),
         ChangeNotifierProvider(create: (_) => UiScaleProvider()),
+        ChangeNotifierProvider(create: (_) => SplitPaneProvider()),
       ],
       child: Builder(
         builder: (ctx) {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/ui_scale_provider.dart';
@@ -7,141 +6,144 @@ import '../../utils/key_formatter.dart';
 import '../resizable_split.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Human-readable labels for storage keys
+// Label overrides
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Maps raw plist keys → human-readable labels.
+/// Handles both prefixed (spnetworkvolume_*) and un-prefixed variants.
 const _kLabels = <String, String>{
-  '_name':                'Name',
-  'bsd_name':             'BSD Name',
-  'file_system':          'File System',
-  'free_space_in_bytes':  'Free',
-  'size_in_bytes':        'Capacity',
-  '_capacity':            'Capacity',
-  'mount_point':          'Mount Point',
-  'writable':             'Writable',
-  'ignore_ownership':     'Ignore Ownership',
-  'volume_uuid':          'Volume UUID',
-  'physical_drive':       'Physical Drive',
-  // physical_drive sub-keys
-  'device_name':          'Device Name',
-  'media_name':           'Media Name',
-  'medium_type':          'Medium Type',
-  'protocol':             'Protocol',
-  'internal':             'Internal',
-  'partition_map_type':   'Partition Map Type',
-  'smart_status':         'SMART Status',
+  '_name':                          'Name',
+  // type / filesystem type  (actual SPX key: spnetworkvolume_fstypename)
+  'spnetworkvolume_fstypename':     'Type',
+  'spnetworkvolume_type':           'Type',
+  'type':                           'Type',
+  'protocol':                       'Type',
+  'fstypename':                     'Type',
+  // mount point  (actual SPX key: spnetworkvolume_fsmtnonname)
+  'spnetworkvolume_fsmtnonname':    'Mount Point',
+  'spnetworkvolume_mountpoint':     'Mount Point',
+  'spnetworkvolume_mount_point':    'Mount Point',
+  'mount_point':                    'Mount Point',
+  'mountpoint':                     'Mount Point',
+  'fsmtnonname':                    'Mount Point',
+  'mntonname':                      'Mount Point',
+  // mounted-from / URL / server  (actual SPX key: spnetworkvolume_mntfromname)
+  'spnetworkvolume_mntfromname':    'Mounted From',
+  'spnetworkvolume_url':            'Mounted From',
+  'spnetworkvolume_remote_url':     'Mounted From',
+  'spnetworkvolume_server':         'Mounted From',
+  'url':                            'Mounted From',
+  'remote_url':                     'Mounted From',
+  'server':                         'Mounted From',
+  'mntfromname':                    'Mounted From',
+  // automounted
+  'spnetworkvolume_automounted':    'Automounted',
+  'automounted':                    'Automounted',
+  // optional extras
+  'spnetworkvolume_mounted_by_uid': 'Mounted by UID',
+  'mounted_by_uid':                 'Mounted by UID',
+  'spnetworkvolume_flags':          'Flags',
+  'flags':                          'Flags',
 };
 
-String _label(String key) => _kLabels[key] ?? formatKey(key);
-
-// ── Preferred order for the detail panel ─────────────────────────────────────
-const _kDetailOrder = [
-  'free_space_in_bytes',
-  'size_in_bytes', '_capacity',
-  'mount_point',
-  'file_system',
-  'writable',
-  'ignore_ownership',
-  'bsd_name',
-  'volume_uuid',
-  'physical_drive',
-];
-
-// ── Preferred column order for the table ─────────────────────────────────────
-const _kColumnOrder = [
-  '_name',
-  'bsd_name',
-  'file_system',
-  'free_space_in_bytes',
-  'size_in_bytes',
-  '_capacity',
-  'mount_point',
-];
-const _kMaxTableColumns = 6;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Byte helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Returns true for keys whose values represent a byte count.
-bool _isByteKey(String key) =>
-    key.endsWith('_in_bytes') || key == '_capacity';
-
-final _commaFmt = NumberFormat('#,###');
-
-/// Formats a byte count into the best matching unit with 2 decimal places.
-String _fmtBytes(dynamic v) {
-  if (v == null) return '—';
-  final raw = v is num ? v.toDouble() : double.tryParse(v.toString());
-  if (raw == null) return v.toString();
-  const kb = 1024.0;
-  const mb = kb * 1024;
-  const gb = mb * 1024;
-  const tb = gb * 1024;
-  if (raw >= tb) return '${(raw / tb).toStringAsFixed(2)} TB';
-  if (raw >= gb) return '${(raw / gb).toStringAsFixed(2)} GB';
-  if (raw >= mb) return '${(raw / mb).toStringAsFixed(2)} MB';
-  if (raw >= kb) return '${(raw / kb).toStringAsFixed(2)} KB';
-  return '${raw.toStringAsFixed(0)} B';
+String _label(String key) {
+  if (_kLabels.containsKey(key)) return _kLabels[key]!;
+  if (key.startsWith('spnetworkvolume_')) {
+    return formatKey(key.substring('spnetworkvolume_'.length));
+  }
+  return formatKey(key);
 }
 
-/// Detail-panel format: "92.16 GB (92,158,513,152 bytes)" for byte keys.
-String _fmtBytesDetailed(dynamic v) {
-  if (v == null) return '—';
-  final raw = v is num ? v.toDouble() : double.tryParse(v.toString());
-  if (raw == null) return v.toString();
-  final formatted = _fmtBytes(raw);
-  final rawInt = raw.truncate();
-  return '$formatted (${_commaFmt.format(rawInt)} bytes)';
-}
+// ── Column definitions ────────────────────────────────────────────────────────
+/// Each column: a fixed display label + a priority-ordered list of plist keys
+/// to try when looking up a value. All 4 columns are always shown.
+const _kColName       = <String>['_name'];
+const _kColType       = <String>['spnetworkvolume_fstypename',  // actual SPX key
+                                  'spnetworkvolume_type', 'fstypename',
+                                  'type', 'protocol'];
+const _kColMountPoint = <String>['spnetworkvolume_fsmtnonname',  // actual SPX key
+                                  'spnetworkvolume_mountpoint',
+                                  'spnetworkvolume_mount_point',
+                                  'fsmtnonname', 'mntonname',
+                                  'mount_point', 'mountpoint'];
+const _kColMountedFrom= <String>['spnetworkvolume_mntfromname',  // actual SPX key
+                                  'spnetworkvolume_url',
+                                  'spnetworkvolume_remote_url',
+                                  'spnetworkvolume_server',
+                                  'mntfromname',
+                                  'url', 'remote_url', 'server'];
+
+/// Preferred detail-panel order: type, mount-point, mounted-from, then extras.
+const _kDetailOrder = <String>[
+  ..._kColType,
+  ..._kColMountPoint,
+  ..._kColMountedFrom,
+  'spnetworkvolume_automounted', 'automounted',
+  'spnetworkvolume_mounted_by_uid', 'mounted_by_uid',
+  'spnetworkvolume_flags', 'flags',
+];
+
+/// Alias groups used to de-duplicate the detail panel.
+const _kAliasGroups = [
+  _kColName,
+  _kColType,        // includes fstypename
+  _kColMountPoint,  // includes fsmtnonname / mntonname
+  _kColMountedFrom, // includes mntfromname
+  <String>['spnetworkvolume_automounted', 'automounted'],
+  <String>['spnetworkvolume_mounted_by_uid', 'mounted_by_uid'],
+  <String>['spnetworkvolume_flags', 'flags'],
+];
+
 
 // ─────────────────────────────────────────────────────────────────────────────
-// General value formatter (for detail panel scalar values)
+// Value formatters
 // ─────────────────────────────────────────────────────────────────────────────
 
-String _fmtVal(String key, dynamic v) {
+String _fmtVal(dynamic v) {
   if (v == null) return '—';
-  if (_isByteKey(key)) return _fmtBytesDetailed(v);
   if (v is bool) return v ? 'Yes' : 'No';
-  if (v is DateTime) {
-    return DateFormat('yyyy-MM-dd  HH:mm:ss').format(v.toLocal());
-  }
   if (v is List) {
+    if (v.isEmpty) return '—';
     if (v.every((e) => e is! Map && e is! List)) return v.join(', ');
-    return '${v.length} item${v.length == 1 ? '' : 's'}';
+    return '${v.length} items';
   }
-  if (v is Map) return '{${v.length} fields}';
+  if (v is Map) return '{…}';
   if (v is String) {
-    final f = formatSpxValue(v);
-    return f.isEmpty ? '—' : f;
+    if (v.toLowerCase() == 'yes') return 'Yes';
+    if (v.toLowerCase() == 'no') return 'No';
+    final t = formatSpxValue(v);
+    return t.isEmpty ? '—' : t;
   }
   return v.toString();
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public widget
 // ─────────────────────────────────────────────────────────────────────────────
 
-class StorageView extends StatefulWidget {
+class NetworkVolumesView extends StatefulWidget {
   final SpxSection section;
   final String searchQuery;
 
-  const StorageView({
+  const NetworkVolumesView({
     super.key,
     required this.section,
     this.searchQuery = '',
   });
 
   @override
-  State<StorageView> createState() => _StorageViewState();
+  State<NetworkVolumesView> createState() => _NetworkVolumesViewState();
 }
 
-class _StorageViewState extends State<StorageView> {
+class _NetworkVolumesViewState extends State<NetworkVolumesView> {
   final _filterCtrl = TextEditingController();
   String _filter = '';
-  String? _sortColumn;
-  bool _sortAscending = true;
+  String? _sortColumnKey;   // the actual resolved plist key being sorted
+  bool   _sortAscending = true;
   Map<String, dynamic>? _selectedItem;
+
+  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
 
   @override
   void dispose() {
@@ -149,29 +151,44 @@ class _StorageViewState extends State<StorageView> {
     super.dispose();
   }
 
-  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
+  // ── Column resolution ─────────────────────────────────────────────────────
 
-  // ── Column selection ───────────────────────────────────────────────────────
-
-  List<String> get _displayColumns {
+  /// Builds the 4 logical columns by scanning the actual keys present in the
+  /// data, using [_label] as a reverse-lookup fallback so any key naming
+  /// convention is handled automatically.
+  ///
+  /// Always returns all 4 columns; [key] is null when nothing matches
+  /// (cell will show "—").
+  List<({String label, String? key})> _buildColumns() {
+    // Union of all keys that actually exist across every item.
     final allKeys = <String>{};
     for (final item in widget.section.items) {
       allKeys.addAll(item.keys);
     }
-    // Start with preferred order, then append any remaining useful keys.
-    final cols = <String>[];
-    for (final k in _kColumnOrder) {
-      if (allKeys.contains(k)) cols.add(k);
-    }
-    for (final k in allKeys) {
-      if (!cols.contains(k) && !k.startsWith('_') && k != 'physical_drive') {
-        cols.add(k);
+    // Also pull in any keys registered in the plist column-order metadata.
+    allKeys.addAll(widget.section.columnKeys);
+
+    String? best(String targetLabel, List<String> candidates) {
+      // Pass 1 – try explicit candidate key names in priority order.
+      for (final k in candidates) {
+        if (allKeys.contains(k)) return k;
       }
+      // Pass 2 – scan every real key and match by its human label.
+      for (final k in allKeys) {
+        if (_label(k) == targetLabel) return k;
+      }
+      return null;
     }
-    return cols.take(_kMaxTableColumns).toList();
+
+    return [
+      (label: 'Name',         key: best('Name',         _kColName)),
+      (label: 'Type',         key: best('Type',         _kColType)),
+      (label: 'Mount Point',  key: best('Mount Point',  _kColMountPoint)),
+      (label: 'Mounted From', key: best('Mounted From', _kColMountedFrom)),
+    ];
   }
 
-  // ── Filtering & sorting ────────────────────────────────────────────────────
+  // ── Filtering & sorting ───────────────────────────────────────────────────
 
   List<Map<String, dynamic>> get _rows {
     var items = widget.section.items.toList();
@@ -186,64 +203,40 @@ class _StorageViewState extends State<StorageView> {
         });
       }).toList();
     }
-    if (_sortColumn != null) {
+    if (_sortColumnKey != null) {
       items.sort((a, b) {
-        final av = a[_sortColumn];
-        final bv = b[_sortColumn];
-        if (av is num && bv is num) {
-          return _sortAscending
-              ? av.compareTo(bv)
-              : bv.compareTo(av);
-        }
-        final cmp = (av?.toString() ?? '')
-            .toLowerCase()
-            .compareTo((bv?.toString() ?? '').toLowerCase());
+        final av = _fmtVal(a[_sortColumnKey]).toLowerCase();
+        final bv = _fmtVal(b[_sortColumnKey]).toLowerCase();
+        final cmp = av.compareTo(bv);
         return _sortAscending ? cmp : -cmp;
       });
     }
     return items;
   }
 
-  void _toggleSort(String col) {
+  void _toggleSort(String? key) {
+    if (key == null) return;
     setState(() {
-      if (_sortColumn == col) {
+      if (_sortColumnKey == key) {
         _sortAscending = !_sortAscending;
       } else {
-        _sortColumn = col;
+        _sortColumnKey = key;
         _sortAscending = true;
       }
     });
   }
 
-  // ── Format a table cell value ──────────────────────────────────────────────
-
-  String _cellVal(String col, dynamic v) {
-    if (v == null) return '—';
-    if (_isByteKey(col)) return _fmtBytes(v);
-    if (v is bool) return v ? 'Yes' : 'No';
-    if (v is List) {
-      if (v.every((e) => e is! Map && e is! List)) return v.join(', ');
-      return '[${v.length}]';
-    }
-    if (v is Map) return '…';
-    if (v is String) {
-      final f = formatSpxValue(v);
-      return f.isEmpty ? '—' : f;
-    }
-    return v.toString();
-  }
-
-  // ── Build ──────────────────────────────────────────────────────────────────
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final sp = context.watch<UiScaleProvider>();
+    final sp    = context.watch<UiScaleProvider>();
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
+    final cs    = theme.colorScheme;
 
-    final columns = _displayColumns;
-    final rows = _rows;
-    final total = widget.section.items.length;
+    final columns = _buildColumns();
+    final rows    = _rows;
+    final total   = widget.section.items.length;
 
     final tableContent = rows.isEmpty
         ? Center(
@@ -255,25 +248,24 @@ class _StorageViewState extends State<StorageView> {
           )
         : ListView.separated(
             itemCount: rows.length,
-            separatorBuilder: (_, _) => Divider(
+            separatorBuilder: (context, index) => Divider(
               height: 1,
               color: cs.outlineVariant.withAlpha(60),
             ),
             itemBuilder: (context, i) {
-              final item = rows[i];
+              final item     = rows[i];
               final selected = _selectedItem == item;
               return _TableRow(
-                item: item,
-                columns: columns,
-                cellVal: _cellVal,
+                item:        item,
+                columns:     columns,
                 searchQuery: _q,
-                selected: selected,
+                selected:    selected,
                 onTap: () => setState(() {
                   _selectedItem = selected ? null : item;
                 }),
                 theme: theme,
-                cs: cs,
-                sp: sp,
+                cs:    cs,
+                sp:    sp,
               );
             },
           );
@@ -281,7 +273,7 @@ class _StorageViewState extends State<StorageView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Filter bar ──────────────────────────────────────────────────────
+        // ── Filter bar ────────────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
           child: Row(
@@ -298,9 +290,7 @@ class _StorageViewState extends State<StorageView> {
                       borderSide: BorderSide(color: cs.outlineVariant),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
+                        horizontal: 12, vertical: 8),
                     suffixIcon: _filter.isNotEmpty
                         ? IconButton(
                             icon: Icon(Icons.close, size: sp.sz(16)),
@@ -324,7 +314,7 @@ class _StorageViewState extends State<StorageView> {
           ),
         ),
 
-        // ── Column headers ──────────────────────────────────────────────────
+        // ── Column headers ────────────────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             color: cs.surfaceContainerLow,
@@ -337,7 +327,7 @@ class _StorageViewState extends State<StorageView> {
               for (final col in columns)
                 Expanded(
                   child: InkWell(
-                    onTap: () => _toggleSort(col),
+                    onTap: () => _toggleSort(col.key),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 9),
@@ -345,17 +335,17 @@ class _StorageViewState extends State<StorageView> {
                         children: [
                           Expanded(
                             child: Text(
-                              _label(col),
+                              col.label,
                               style: theme.textTheme.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                color: _sortColumn == col
+                                color: _sortColumnKey == col.key
                                     ? cs.primary
                                     : cs.onSurfaceVariant,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          if (_sortColumn == col)
+                          if (_sortColumnKey == col.key && col.key != null)
                             Icon(
                               _sortAscending
                                   ? Icons.arrow_upward_rounded
@@ -372,7 +362,7 @@ class _StorageViewState extends State<StorageView> {
           ),
         ),
 
-        // ── Table rows + (optional) resizable detail panel ──────────────────
+        // ── Table rows + (optional) resizable detail panel ───────────────
         if (_selectedItem == null) ...[
           Expanded(child: tableContent),
         ] else ...[
@@ -383,12 +373,18 @@ class _StorageViewState extends State<StorageView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _DetailDivider(
-                    item: _selectedItem!, cs: cs, theme: theme, sp: sp,
+                    item:    _selectedItem!,
+                    cs:      cs,
+                    theme:   theme,
+                    sp:      sp,
                     onClose: () => setState(() => _selectedItem = null),
                   ),
                   Expanded(
                     child: _DetailPanel(
-                      item: _selectedItem!, sp: sp, theme: theme, cs: cs,
+                      item:  _selectedItem!,
+                      sp:    sp,
+                      theme: theme,
+                      cs:    cs,
                     ),
                   ),
                 ],
@@ -407,8 +403,7 @@ class _StorageViewState extends State<StorageView> {
 
 class _TableRow extends StatelessWidget {
   final Map<String, dynamic> item;
-  final List<String> columns;
-  final String Function(String, dynamic) cellVal;
+  final List<({String label, String? key})> columns;
   final String searchQuery;
   final bool selected;
   final VoidCallback onTap;
@@ -419,7 +414,6 @@ class _TableRow extends StatelessWidget {
   const _TableRow({
     required this.item,
     required this.columns,
-    required this.cellVal,
     required this.searchQuery,
     required this.selected,
     required this.onTap,
@@ -444,11 +438,11 @@ class _TableRow extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 7),
                     child: _Cell(
-                      text: cellVal(col, item[col]),
-                      query: searchQuery,
+                      text:     _fmtVal(col.key != null ? item[col.key] : null),
+                      query:    searchQuery,
                       selected: selected,
-                      theme: theme,
-                      cs: cs,
+                      theme:    theme,
+                      cs:       cs,
                     ),
                   ),
                 ),
@@ -484,32 +478,26 @@ class _Cell extends StatelessWidget {
     final baseStyle = theme.textTheme.bodyMedium?.copyWith(
       color: selected ? cs.onPrimaryContainer : null,
     );
-    if (query.isEmpty ||
-        !text.toLowerCase().contains(query.toLowerCase())) {
+    if (query.isEmpty || !text.toLowerCase().contains(query.toLowerCase())) {
       return Text(text, overflow: TextOverflow.ellipsis, style: baseStyle);
     }
     final lower = text.toLowerCase();
-    final q = query.toLowerCase();
+    final q     = query.toLowerCase();
     final spans = <TextSpan>[];
-    int start = 0;
-    int idx;
+    int start = 0, idx;
     while ((idx = lower.indexOf(q, start)) != -1) {
-      if (idx > start) {
-        spans.add(TextSpan(text: text.substring(start, idx)));
-      }
+      if (idx > start) spans.add(TextSpan(text: text.substring(start, idx)));
       spans.add(TextSpan(
         text: text.substring(idx, idx + query.length),
         style: TextStyle(
           backgroundColor: cs.tertiaryContainer,
-          color: cs.onTertiaryContainer,
-          fontWeight: FontWeight.bold,
+          color:           cs.onTertiaryContainer,
+          fontWeight:      FontWeight.bold,
         ),
       ));
       start = idx + query.length;
     }
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
+    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
     return RichText(
       overflow: TextOverflow.ellipsis,
       text: TextSpan(style: baseStyle, children: spans),
@@ -543,15 +531,15 @@ class _DetailDivider extends StatelessWidget {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         border: Border(
-          top: BorderSide(color: cs.outlineVariant, width: 0.5),
+          top:    BorderSide(color: cs.outlineVariant, width: 0.5),
           bottom: BorderSide(color: cs.outlineVariant, width: 0.5),
         ),
       ),
       padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
       child: Row(
         children: [
-          Icon(Icons.storage_outlined, size: sp.sz(15),
-              color: cs.onSurfaceVariant),
+          Icon(Icons.folder_shared_outlined,
+              size: sp.sz(15), color: cs.onSurfaceVariant),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -577,7 +565,7 @@ class _DetailDivider extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Detail panel — scrollable KV list matching macOS System Information layout
+// Detail panel
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _DetailPanel extends StatelessWidget {
@@ -593,75 +581,67 @@ class _DetailPanel extends StatelessWidget {
     required this.cs,
   });
 
-  static const double _keyW = 220.0;
+  static const double _keyW = 200.0;
 
   @override
   Widget build(BuildContext context) {
-    final rows = _buildRows(context);
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
-      children: rows,
+      children: _buildRows(),
     );
   }
 
-  List<Widget> _buildRows(BuildContext context) {
+  List<Widget> _buildRows() {
     final widgets = <Widget>[];
-    final keyW = sp.sz(_keyW);
-    final seen = <String>{};
+    final keyW    = sp.sz(_keyW);
+    final seen    = <String>{};
 
     void addKv(String key, dynamic value, {double indent = 0}) {
       if (isInternalKey(key) || key == '_name') return;
-      if (value is Map) return; // handled separately as sub-section
-      final labelText = _label(key);
-      final valueText = _fmtVal(key, value);
+      if (value is Map) return;
       widgets.add(_DetailRow(
-        label: labelText,
-        value: valueText,
-        indent: indent,
+        label:    _label(key),
+        value:    _fmtVal(value),
+        indent:   indent,
         keyWidth: (keyW - indent).clamp(80.0, double.infinity),
-        theme: theme,
-        cs: cs,
+        theme:    theme,
+        cs:       cs,
       ));
     }
 
-    void addSubSection(String key, Map<String, dynamic> sub,
-        {double indent = 0}) {
-      widgets.add(_SubHeader(
-        label: _label(key),
-        indent: indent,
-        theme: theme,
-        cs: cs,
-      ));
-      for (final e in sub.entries) {
-        if (isInternalKey(e.key) || e.key == '_name') continue;
-        if (e.value is Map) {
-          addSubSection(e.key, (e.value as Map).cast<String, dynamic>(),
-              indent: indent + sp.sz(20));
-        } else {
-          addKv(e.key, e.value, indent: indent + sp.sz(20));
-        }
-      }
-    }
-
-    // 1. Preferred-order keys
+    // 1. Preferred-order keys (de-duplicated across alias groups).
     for (final key in _kDetailOrder) {
       if (!item.containsKey(key)) continue;
-      seen.add(key);
-      final v = item[key];
-      if (v is Map) {
-        addSubSection(key, v.cast<String, dynamic>());
-      } else {
-        addKv(key, v);
+      if (seen.contains(key)) continue;
+      // Mark the entire alias group as seen so we never show duplicates.
+      for (final group in _kAliasGroups) {
+        if (group.contains(key)) {
+          seen.addAll(group);
+          break;
+        }
       }
+      seen.add(key);
+      addKv(key, item[key]);
     }
 
-    // 2. Remaining keys not in preferred order
+    // 2. Any remaining keys not yet shown.
     for (final e in item.entries) {
       if (seen.contains(e.key)) continue;
       if (isInternalKey(e.key) || e.key == '_name') continue;
       seen.add(e.key);
       if (e.value is Map) {
-        addSubSection(e.key, (e.value as Map).cast<String, dynamic>());
+        // sub-dict: show as indented block
+        widgets.add(_SubHeader(
+          label:  _label(e.key),
+          indent: 0,
+          theme:  theme,
+          cs:     cs,
+        ));
+        for (final sub in (e.value as Map).entries) {
+          final subKey = sub.key.toString();
+          if (isInternalKey(subKey) || subKey == '_name') continue;
+          addKv(subKey, sub.value, indent: sp.sz(20));
+        }
       } else {
         addKv(e.key, e.value);
       }
@@ -700,7 +680,7 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant,
+                color:      cs.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -735,7 +715,7 @@ class _SubHeader extends StatelessWidget {
       child: Text(
         label,
         style: theme.textTheme.bodyMedium?.copyWith(
-          color: cs.primary,
+          color:      cs.primary,
           fontWeight: FontWeight.w600,
         ),
       ),

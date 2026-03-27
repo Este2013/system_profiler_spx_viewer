@@ -31,7 +31,7 @@ class _KvTableState extends State<KvTable> {
 
   List<MapEntry<String, dynamic>> get _filteredEntries {
     final entries = widget.item.entries
-        .where((e) => !isInternalKey(e.key))
+        .where((e) => !isInternalKey(e.key) && e.key != '_name')
         .toList();
 
     final effectiveFilter =

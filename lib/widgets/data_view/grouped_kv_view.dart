@@ -227,7 +227,7 @@ class _GroupSectionState extends State<_GroupSection>
     final groupName = _formatGroupName(widget.item['_name']?.toString() ?? '');
 
     final entries = widget.item.entries
-        .where((e) => !isInternalKey(e.key))
+        .where((e) => !isInternalKey(e.key) && e.key != '_name')
         .toList();
 
     final visible = widget.searchQuery.isEmpty

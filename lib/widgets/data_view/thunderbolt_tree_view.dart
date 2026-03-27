@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../resizable_split.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Label overrides — covers both bare keys and their _key-suffixed variants
@@ -173,33 +174,24 @@ class _ThunderboltTreeViewState extends State<ThunderboltTreeView> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 300,
-          child: _TreePanel(
-            items: widget.items,
-            selected: _selected,
-            expanded: _expanded,
-            onSelect: _select,
-            onToggle: _toggle,
-          ),
-        ),
-        VerticalDivider(width: 1, thickness: 1, color: cs.outlineVariant),
-        Expanded(
-          child: _selected == null
-              ? Center(
-                  child: Text(
-                    'Select a device',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: cs.onSurface.withAlpha(100),
-                        ),
-                  ),
-                )
-              : _DetailPanel(node: _selected!),
-        ),
-      ],
+    return ResizableSplit(
+      left: _TreePanel(
+        items: widget.items,
+        selected: _selected,
+        expanded: _expanded,
+        onSelect: _select,
+        onToggle: _toggle,
+      ),
+      right: _selected == null
+          ? Center(
+              child: Text(
+                'Select a device',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: cs.onSurface.withAlpha(100),
+                    ),
+              ),
+            )
+          : _DetailPanel(node: _selected!),
     );
   }
 }

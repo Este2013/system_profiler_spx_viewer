@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../resizable_split.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Node-type helpers
@@ -35,14 +36,14 @@ String _nodeName(Map<String, dynamic> node) =>
 /// Covers all key-name variants observed across SPX file versions.
 bool _isRemovable(Map<String, dynamic> node) {
   // Explicit known keys first — fast path.
-  const _candidateKeys = [
+  const candidateKeys = [
     'USBDeviceKeyHardwareType',
     'USBDeviceKeyDeviceHardwareType',
     'device_hardware_type',
     'hardware_type',
     'deviceHardwareType',
   ];
-  for (final key in _candidateKeys) {
+  for (final key in candidateKeys) {
     final v = node[key];
     if (v != null && v.toString().toLowerCase() == 'removable') return true;
   }
@@ -113,41 +114,24 @@ class _UsbTreeViewState extends State<UsbTreeView> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // ── Tree panel ────────────────────────────────────────────────────
-        SizedBox(
-          width: 300,
-          child: _TreePanel(
-            buses: widget.buses,
-            selected: _selected,
-            expanded: _expanded,
-            onSelect: _select,
-            onToggle: _toggle,
-          ),
-        ),
-
-        VerticalDivider(
-          width: 1,
-          thickness: 1,
-          color: cs.outlineVariant,
-        ),
-
-        // ── Detail panel ──────────────────────────────────────────────────
-        Expanded(
-          child: _selected == null
-              ? Center(
-                  child: Text(
-                    'Select a device',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: cs.onSurface.withAlpha(100),
-                        ),
-                  ),
-                )
-              : _DetailPanel(node: _selected!),
-        ),
-      ],
+    return ResizableSplit(
+      left: _TreePanel(
+        buses: widget.buses,
+        selected: _selected,
+        expanded: _expanded,
+        onSelect: _select,
+        onToggle: _toggle,
+      ),
+      right: _selected == null
+          ? Center(
+              child: Text(
+                'Select a device',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: cs.onSurface.withAlpha(100),
+                    ),
+              ),
+            )
+          : _DetailPanel(node: _selected!),
     );
   }
 }
@@ -236,7 +220,7 @@ class _NodeTile extends StatelessWidget {
         node['USBKeyLinkSpeed']?.toString();
     final vendor = node['USBDeviceKeyVendorName']?.toString() ??
         node['USBDeviceKeyManufacturerStringIndex']?.toString();
-    final subtitle = [if (vendor != null) vendor, if (speed != null) speed]
+    final subtitle = [vendor, speed].nonNulls.toList()
         .join(' · ')
         .nullIfEmpty();
 
@@ -455,7 +439,7 @@ class _DetailPanel extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   itemCount: fields.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, _) => Divider(
                     height: 1,
                     color: cs.outlineVariant.withAlpha(80),
                     indent: 20,

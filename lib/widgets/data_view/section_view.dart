@@ -23,6 +23,17 @@ import 'storage_view.dart';
 import 'thunderbolt_tree_view.dart';
 import 'network_overview_view.dart';
 import 'firewall_view.dart';
+import 'locations_view.dart';
+import 'wifi_view.dart';
+import 'network_volumes_view.dart';
+import 'software_view.dart';
+import 'accessibility_view.dart';
+import 'developer_tools_view.dart';
+import 'detail_table_view.dart';
+import 'printer_software_view.dart';
+import 'rosetta_software_view.dart';
+import 'smart_cards_view.dart';
+import 'sync_services_view.dart';
 import '../../utils/key_formatter.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
@@ -58,6 +69,70 @@ class SectionView extends StatelessWidget {
     if (section.dataType == 'SPSecureElementDataType') {
       final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
       return ApplePayView(item: item, searchQuery: searchQuery);
+    }
+
+    // Accessibility → KV view with custom display/zoomMode value formatting.
+    if (section.dataType == 'SPUniversalAccessDataType') {
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
+      return AccessibilityView(item: item, searchQuery: searchQuery);
+    }
+
+    // Developer Tools → hierarchical view (Version, Location, Apps, SDKs).
+    if (section.dataType == 'SPDeveloperToolsDataType') {
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
+      return DeveloperToolsView(item: item, searchQuery: searchQuery);
+    }
+
+    // Applications → sortable table + click-to-detail panel.
+    if (section.dataType == 'SPApplicationsDataType') {
+      return DetailTableView.applications(section: section, searchQuery: searchQuery);
+    }
+
+    // Extensions → sortable table + click-to-detail panel.
+    if (section.dataType == 'SPExtensionsDataType') {
+      return DetailTableView.extensions(section: section, searchQuery: searchQuery);
+    }
+
+    // Fonts → sortable table + click-to-detail panel (with nested typefaces).
+    if (section.dataType == 'SPFontsDataType') {
+      return DetailTableView.fonts(section: section, searchQuery: searchQuery);
+    }
+
+    // Frameworks → sortable table + click-to-detail panel.
+    if (section.dataType == 'SPFrameworksDataType') {
+      return DetailTableView.frameworks(section: section, searchQuery: searchQuery);
+    }
+
+    // Install History → sortable table + click-to-detail panel.
+    if (section.dataType == 'SPInstallHistoryDataType') {
+      return DetailTableView.installations(section: section, searchQuery: searchQuery);
+    }
+
+    // Printer Software → collapsible category groups (PPDs, Printers, etc.).
+    if (section.dataType == 'SPPrintersSoftwareDataType' ||
+        section.dataType == 'SPPrinterSoftwareDataType') {
+      return PrinterSoftwareView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Rosetta Software → two-pane Developer → App tree with detail panel.
+    if (section.dataType == 'SPLegacySoftwareDataType') {
+      return RosettaSoftwareView(items: section.items);
+    }
+
+    // SmartCards → labelled sections with numbered drivers and bullet lists.
+    if (section.dataType == 'SPSmartCardsDataType') {
+      return SmartCardsView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Sync Services → two-pane group → log tree with detail panel.
+    if (section.dataType == 'SPSyncServicesDataType') {
+      return SyncServicesView(items: section.items);
+    }
+
+    // Software Overview → ordered KV view with formatted uptime and labels.
+    if (section.dataType == 'SPSoftwareDataType') {
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
+      return SoftwareView(item: item, searchQuery: searchQuery);
     }
 
     // Hardware Overview → ordered KV view with macOS-matching labels.
@@ -100,6 +175,21 @@ class SectionView extends StatelessWidget {
     // Thunderbolt / USB4 → two-pane tree + detail view.
     if (section.dataType == 'SPThunderboltDataType' || section.dataType == 'SPUSB4DataType') {
       return ThunderboltTreeView(items: section.items);
+    }
+
+    // Network Locations → hierarchical collapsible service tree.
+    if (section.dataType == 'SPNetworkLocationDataType') {
+      return LocationsView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Wi-Fi → hierarchical view with collapsible interfaces.
+    if (section.dataType == 'SPAirPortDataType') {
+      return WifiView(items: section.items, searchQuery: searchQuery);
+    }
+
+    // Network Volumes → table with detail panel on row selection.
+    if (section.dataType == 'SPNetworkVolumeDataType') {
+      return NetworkVolumesView(section: section, searchQuery: searchQuery);
     }
 
     // Firewall → hierarchical indented view matching macOS layout.
@@ -372,9 +462,9 @@ String _sectionToJson(SpxSection section) {
   dynamic sanitize(dynamic v) {
     if (v is DateTime) return v.toIso8601String();
     if (v is Map) {
-      return (v as Map).map((k, v2) => MapEntry(k.toString(), sanitize(v2)));
+      return v.map((k, v2) => MapEntry(k.toString(), sanitize(v2)));
     }
-    if (v is List) return (v as List).map(sanitize).toList();
+    if (v is List) return v.map(sanitize).toList();
     return v;
   }
 
@@ -397,17 +487,17 @@ String _sectionToText(SpxSection section) {
         buf.writeln('$indent$key:');
         writeMap(
           Map<String, dynamic>.fromEntries(
-            (v as Map).entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
+            v.entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
           ),
           depth + 1,
         );
       } else if (v is List) {
         buf.writeln('$indent$key:');
-        for (final item in v as List) {
+        for (final item in v) {
           if (item is Map) {
             writeMap(
               Map<String, dynamic>.fromEntries(
-                (item as Map).entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
+                item.entries.map((e2) => MapEntry(e2.key.toString(), e2.value)),
               ),
               depth + 1,
             );

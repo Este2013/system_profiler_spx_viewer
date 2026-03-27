@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../resizable_split.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Label helpers
@@ -266,6 +267,34 @@ class _NetworkOverviewViewState extends State<NetworkOverviewView> {
     final rows = _rows;
     final total = widget.section.items.length;
 
+    final tableContent = rows.isEmpty
+        ? Center(
+            child: Text('No matching interfaces',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: cs.onSurfaceVariant)),
+          )
+        : ListView.separated(
+            itemCount: rows.length,
+            separatorBuilder: (_, _) =>
+                Divider(height: 1, color: cs.outlineVariant.withAlpha(60)),
+            itemBuilder: (context, i) {
+              final item = rows[i];
+              final selected = _selectedItem == item;
+              return _TableRow(
+                item: item,
+                columns: columns,
+                cellVal: _cellVal,
+                searchQuery: _q,
+                selected: selected,
+                onTap: () => setState(() {
+                  _selectedItem = selected ? null : item;
+                }),
+                theme: theme,
+                cs: cs,
+              );
+            },
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -355,51 +384,28 @@ class _NetworkOverviewViewState extends State<NetworkOverviewView> {
           ),
         ),
 
-        // ── Table rows ──────────────────────────────────────────────────────
-        Expanded(
-          flex: 2,
-          child: rows.isEmpty
-              ? Center(
-                  child: Text('No matching interfaces',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: cs.onSurfaceVariant)),
-                )
-              : ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, __) => Divider(
-                      height: 1, color: cs.outlineVariant.withAlpha(60)),
-                  itemBuilder: (context, i) {
-                    final item = rows[i];
-                    final selected = _selectedItem == item;
-                    return _TableRow(
-                      item: item,
-                      columns: columns,
-                      cellVal: _cellVal,
-                      searchQuery: _q,
-                      selected: selected,
-                      onTap: () => setState(() {
-                        _selectedItem = selected ? null : item;
-                      }),
-                      theme: theme,
-                      cs: cs,
-                    );
-                  },
-                ),
-        ),
-
-        // ── Detail panel ────────────────────────────────────────────────────
-        if (_selectedItem != null) ...[
-          _DetailBar(
-            item: _selectedItem!,
-            cs: cs,
-            theme: theme,
-            sp: sp,
-            onClose: () => setState(() => _selectedItem = null),
-          ),
+        // ── Table rows + (optional) resizable detail panel ──────────────────
+        if (_selectedItem == null) ...[
+          Expanded(child: tableContent),
+        ] else ...[
           Expanded(
-            flex: 3,
-            child: _DetailPanel(item: _selectedItem!, theme: theme, cs: cs,
-                sp: sp),
+            child: ResizableHSplit(
+              top: tableContent,
+              bottom: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DetailBar(
+                    item: _selectedItem!, cs: cs, theme: theme, sp: sp,
+                    onClose: () => setState(() => _selectedItem = null),
+                  ),
+                  Expanded(
+                    child: _DetailPanel(
+                      item: _selectedItem!, theme: theme, cs: cs, sp: sp,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ],

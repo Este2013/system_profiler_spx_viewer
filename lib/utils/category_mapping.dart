@@ -62,7 +62,7 @@ const Map<String, SectionInfo> kDataTypeMap = {
   'SPApplicationsDataType':         SectionInfo('Applications',       'Software'),
   'SPDeveloperToolsDataType':       SectionInfo('Developer',          'Software'),
   'SPDisabledSoftwareDataType':     SectionInfo('Disabled Software',  'Software'),
-  'SPLegacySoftwareDataType':       SectionInfo('Disabled Software',  'Software'),
+  'SPLegacySoftwareDataType':       SectionInfo('Rosetta Software',   'Software'),
   'SPExtensionsDataType':           SectionInfo('Extensions',         'Software'),
   'SPFontsDataType':                SectionInfo('Fonts',              'Software'),
   'SPFrameworksDataType':           SectionInfo('Frameworks',         'Software'),
