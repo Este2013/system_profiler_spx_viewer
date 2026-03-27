@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:window_manager/window_manager.dart';
 import 'providers/document_provider.dart';
 import 'providers/ui_scale_provider.dart';
 import 'providers/split_pane_provider.dart';
 import 'screens/home_screen.dart';
 import 'widgets/drop_overlay.dart';
 
-void main(List<String> args) {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
+  await windowManager.ensureInitialized();
+  await windowManager.setIcon('assets/logo.ico');
   runApp(SpxViewerApp(initialFilePath: args.isNotEmpty ? args.first : null));
 }
 
