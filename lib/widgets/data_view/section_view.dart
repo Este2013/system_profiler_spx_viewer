@@ -34,7 +34,9 @@ import 'printer_software_view.dart';
 import 'rosetta_software_view.dart';
 import 'smart_cards_view.dart';
 import 'sync_services_view.dart';
+import 'card_reader_view.dart';
 import '../../utils/key_formatter.dart';
+import '../../utils/section_descriptions.dart';
 
 /// Routes a selected [SpxSection] to the appropriate view widget.
 class SectionView extends StatelessWidget {
@@ -213,6 +215,11 @@ class SectionView extends StatelessWidget {
       return PowerView(items: section.items, searchQuery: searchQuery);
     }
 
+    if (section.dataType == 'SPCardReaderDataType') {
+      final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
+      return CardReaderView(item: item, searchQuery: searchQuery);
+    }
+
     // Controller (iBridge / T2 / Apple Silicon) → hierarchical indented tree.
     if (section.dataType == 'SPiBridgeDataType') {
       final item = section.items.isNotEmpty ? section.items.first : <String, dynamic>{};
@@ -336,7 +343,7 @@ IconData? Function(Map<String, dynamic>)? _trailingIconBuilderFor(String dataTyp
 
 // ---------------------------------------------------------------------------
 
-IconData _iconForSection(String dataType) {
+IconData iconForSection(String dataType) {
   switch (dataType) {
     // ── Hardware ─────────────────────────────────────────────────────────────
     case 'SPHardwareDataType':
@@ -523,6 +530,34 @@ String _sectionToText(SpxSection section) {
 
 // ---------------------------------------------------------------------------
 
+void showSectionInfo(BuildContext context, SpxSection section) {
+  final theme = Theme.of(context);
+  final cs    = theme.colorScheme;
+  showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      icon: Icon(iconForSection(section.dataType), color: cs.primary, size: 32),
+      title: Text(section.displayName),
+      titleTextStyle: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Text(
+          descriptionFor(section.dataType),
+          style: theme.textTheme.bodyMedium?.copyWith(height: 1.55),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+
 class _SectionHeader extends StatelessWidget {
   final SpxSection section;
 
@@ -532,7 +567,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final icon = _iconForSection(section.dataType);
+    final icon = iconForSection(section.dataType);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
@@ -602,6 +637,18 @@ class _SectionHeader extends StatelessWidget {
               }
             },
           ),
+          // Section info button
+          IconButton(
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            icon: Icon(
+              Icons.info_outline_rounded,
+              size: 16,
+              color: colorScheme.onSurfaceVariant.withAlpha(180),
+            ),
+            tooltip: 'About this section',
+            onPressed: () => showSectionInfo(context, section),
+          ),
           if (!section.isEmpty) _CountBadge(count: section.items.length, label: section.items.length == 1 ? 'item' : 'items', colorScheme: colorScheme, theme: theme),
         ],
       ),
@@ -640,19 +687,43 @@ class _EmptySectionView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final cs = theme.colorScheme;
     final sp = context.watch<UiScaleProvider>();
+    final description = descriptionFor(section.dataType);
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.inbox_outlined, size: sp.sz(52), color: colorScheme.onSurface.withAlpha(50)),
-          const SizedBox(height: 14),
-          Text('No data available', style: theme.textTheme.bodyLarge?.copyWith(color: colorScheme.onSurface.withAlpha(100))),
-          const SizedBox(height: 4),
-          Text(section.dataType, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurface.withAlpha(60))),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.inbox_outlined, size: sp.sz(52), color: cs.onSurface.withAlpha(50)),
+              const SizedBox(height: 16),
+              Text(
+                'No data available',
+                style: theme.textTheme.bodyLarge?.copyWith(color: cs.onSurface.withAlpha(100)),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                section.dataType,
+                style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurface.withAlpha(60)),
+              ),
+              const SizedBox(height: 28),
+              Divider(color: cs.outlineVariant.withAlpha(120)),
+              const SizedBox(height: 20),
+              Text(
+                description,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: cs.onSurface.withAlpha(160),
+                  height: 1.6,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

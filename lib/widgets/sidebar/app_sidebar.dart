@@ -4,6 +4,7 @@ import '../../models/spx_section.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/category_mapping.dart';
+import '../data_view/section_view.dart' show showSectionInfo;
 
 class AppSidebar extends StatefulWidget {
   const AppSidebar({super.key});
@@ -259,46 +260,81 @@ class _SectionTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-      child: Material(
-        color: isSelected ? cs.primaryContainer : Colors.transparent,
-        borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          onTap: () => provider.selectSection(section),
+      child: GestureDetector(
+        onSecondaryTapUp: (details) => _showTileContextMenu(context, section, details.globalPosition),
+        child: Material(
+          color: isSelected ? cs.primaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 6, 10, 6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    section.displayName,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight:
-                          isSelected ? FontWeight.w600 : FontWeight.normal,
-                      color: isSelected
-                          ? cs.onPrimaryContainer
-                          : section.isEmpty
-                              ? cs.onSurface.withAlpha(70)
-                              : cs.onSurface,
+          child: InkWell(
+            onTap: () => provider.selectSection(section),
+            borderRadius: BorderRadius.circular(7),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 6, 10, 6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      section.displayName,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected
+                            ? cs.onPrimaryContainer
+                            : section.isEmpty
+                                ? cs.onSurface.withAlpha(70)
+                                : cs.onSurface,
+                      ),
                     ),
                   ),
-                ),
-                if (matchCount > 0)
-                  _MatchBadge(count: matchCount)
-                else if (!section.isEmpty)
-                  Icon(
-                    Icons.circle,
-                    size: 6,
-                    color: isSelected
-                        ? cs.onPrimaryContainer.withAlpha(140)
-                        : cs.primary.withAlpha(160),
-                  ),
-              ],
+                  if (matchCount > 0)
+                    _MatchBadge(count: matchCount)
+                  else if (!section.isEmpty)
+                    Icon(
+                      Icons.circle,
+                      size: 6,
+                      color: isSelected
+                          ? cs.onPrimaryContainer.withAlpha(140)
+                          : cs.primary.withAlpha(160),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+Future<void> _showTileContextMenu(
+  BuildContext context,
+  SpxSection section,
+  Offset globalPosition,
+) async {
+  final item = await showMenu<String>(
+    context: context,
+    position: RelativeRect.fromLTRB(
+      globalPosition.dx, globalPosition.dy,
+      globalPosition.dx, globalPosition.dy,
+    ),
+    items: [
+      PopupMenuItem<String>(
+        value: 'info',
+        child: Row(
+          children: [
+            Icon(Icons.info_outline_rounded, size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            const Text('About this section'),
+          ],
+        ),
+      ),
+    ],
+  );
+  if (item == 'info' && context.mounted) {
+    showSectionInfo(context, section);
   }
 }
 
