@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 import 'providers/document_provider.dart';
 import 'providers/ui_scale_provider.dart';
 import 'providers/split_pane_provider.dart';
+import 'providers/update_provider.dart';
 import 'screens/home_screen.dart';
 import 'widgets/drop_overlay.dart';
 
@@ -27,6 +28,7 @@ class SpxViewerApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DocumentProvider()),
         ChangeNotifierProvider(create: (_) => UiScaleProvider()),
         ChangeNotifierProvider(create: (_) => SplitPaneProvider()),
+        ChangeNotifierProvider(create: (_) => UpdateProvider()),
       ],
       child: Builder(
         builder: (ctx) {
@@ -81,14 +83,14 @@ class _AppRootState extends State<_AppRoot> {
   void initState() {
     super.initState();
     HardwareKeyboard.instance.addHandler(_handleKey);
-    if (widget.initialFilePath != null) {
-      // Load after the first frame so the Provider tree is ready
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.read<DocumentProvider>().loadFile(widget.initialFilePath!);
-        }
-      });
-    }
+    // Load initial file + check for updates after first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (widget.initialFilePath != null) {
+        context.read<DocumentProvider>().loadFile(widget.initialFilePath!);
+      }
+      context.read<UpdateProvider>().checkForUpdates();
+    });
   }
 
   @override
@@ -99,25 +101,21 @@ class _AppRootState extends State<_AppRoot> {
 
   bool _handleKey(KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) return false;
-    final ctrl = HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed;
+    final ctrl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
     if (!ctrl) return false;
 
     final sp = context.read<UiScaleProvider>();
     final key = event.logicalKey;
 
-    if (key == LogicalKeyboardKey.equal ||
-        key == LogicalKeyboardKey.numpadAdd) {
+    if (key == LogicalKeyboardKey.equal || key == LogicalKeyboardKey.numpadAdd) {
       sp.increase();
       return true;
     }
-    if (key == LogicalKeyboardKey.minus ||
-        key == LogicalKeyboardKey.numpadSubtract) {
+    if (key == LogicalKeyboardKey.minus || key == LogicalKeyboardKey.numpadSubtract) {
       sp.decrease();
       return true;
     }
-    if (key == LogicalKeyboardKey.digit0 ||
-        key == LogicalKeyboardKey.numpad0) {
+    if (key == LogicalKeyboardKey.digit0 || key == LogicalKeyboardKey.numpad0) {
       sp.reset();
       return true;
     }
@@ -129,6 +127,13 @@ class _AppRootState extends State<_AppRoot> {
         dp.openFilePicker();
       }
       return true;
+    }
+    if (key == LogicalKeyboardKey.keyF) {
+      final dp = context.read<DocumentProvider>();
+      if (dp.hasDocument) {
+        dp.requestSearchFocus();
+        return true;
+      }
     }
     return false;
   }
@@ -199,19 +204,14 @@ class _ScaleSlider extends StatelessWidget {
               child: SliderTheme(
                 data: SliderTheme.of(context).copyWith(
                   trackHeight: 2,
-                  thumbShape:
-                      const RoundSliderThumbShape(enabledThumbRadius: 6),
-                  overlayShape:
-                      const RoundSliderOverlayShape(overlayRadius: 12),
+                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
                 ),
                 child: Slider(
                   value: sp.scale,
                   min: UiScaleProvider.minScale,
                   max: UiScaleProvider.maxScale,
-                  divisions: ((UiScaleProvider.maxScale -
-                              UiScaleProvider.minScale) /
-                          UiScaleProvider.step)
-                      .round(),
+                  divisions: ((UiScaleProvider.maxScale - UiScaleProvider.minScale) / UiScaleProvider.step).round(),
                   onChanged: sp.setScale,
                 ),
               ),
@@ -232,8 +232,7 @@ class _ScaleSlider extends StatelessWidget {
                     '${(sp.scale * 100).round()}%',
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: isDefault ? cs.onSurfaceVariant : cs.primary,
-                      fontWeight:
-                          isDefault ? FontWeight.normal : FontWeight.w600,
+                      fontWeight: isDefault ? FontWeight.normal : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -289,17 +288,17 @@ class _ThemeButton extends StatelessWidget {
 
     final (IconData icon, String tooltip) = switch (sp.themeMode) {
       ThemeMode.system => (
-          Icons.brightness_auto_outlined,
-          'Appearance: System  (click → Light)',
-        ),
+        Icons.brightness_auto_outlined,
+        'Appearance: System  (click → Light)',
+      ),
       ThemeMode.light => (
-          Icons.light_mode_outlined,
-          'Appearance: Light  (click → Dark)',
-        ),
+        Icons.light_mode_outlined,
+        'Appearance: Light  (click → Dark)',
+      ),
       ThemeMode.dark => (
-          Icons.dark_mode_outlined,
-          'Appearance: Dark  (click → System)',
-        ),
+        Icons.dark_mode_outlined,
+        'Appearance: Dark  (click → System)',
+      ),
     };
 
     return Tooltip(

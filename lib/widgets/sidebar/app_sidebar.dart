@@ -4,6 +4,7 @@ import '../../models/spx_section.dart';
 import '../../providers/document_provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/category_mapping.dart';
+import '../../utils/key_formatter.dart';
 import '../data_view/section_view.dart' show showSectionInfo;
 
 class AppSidebar extends StatefulWidget {
@@ -139,6 +140,16 @@ class _CategoryGroup extends StatelessWidget {
         .toList()
       ..sort((a, b) => a.displayName.compareTo(b.displayName));
 
+    // When search is active, filter sections to those with name or data matches.
+    final q = provider.globalSearchQuery;
+    final qLower = q.toLowerCase();
+    final visibleSubItems = q.isEmpty
+        ? subItems
+        : subItems.where((s) => _sectionHasMatch(s, qLower)).toList();
+
+    // Hide the whole category group if search is active and nothing matches.
+    if (q.isNotEmpty && visibleSubItems.isEmpty) return const SizedBox.shrink();
+
     // Whether the overview for this category is currently active.
     final overviewActive = provider.selectedCategoryOverview == category;
 
@@ -211,7 +222,7 @@ class _CategoryGroup extends StatelessWidget {
 
         // ── Sub-items ────────────────────────────────────────────────────
         if (isExpanded)
-          for (final section in subItems)
+          for (final section in visibleSubItems)
             _SectionTile(section: section),
       ],
     );
@@ -246,15 +257,16 @@ class _SectionTile extends StatelessWidget {
     // Overview sections are never in the sub-items list, so no conflict.
     final isSelected = provider.selectedSection?.dataType == section.dataType;
 
-    // Count search matches.
+    // Count search matches (keys and values).
     int matchCount = 0;
     final q = provider.globalSearchQuery;
     if (q.isNotEmpty) {
       final qLower = q.toLowerCase();
       for (final item in section.items) {
-        if (item.values.any((v) => v.toString().toLowerCase().contains(qLower))) {
-          matchCount++;
-        }
+        final matches = item.entries.any((e) =>
+            formatKey(e.key).toLowerCase().contains(qLower) ||
+            e.value.toString().toLowerCase().contains(qLower));
+        if (matches) matchCount++;
       }
     }
 
@@ -304,6 +316,17 @@ class _SectionTile extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+bool _sectionHasMatch(SpxSection section, String qLower) {
+  if (section.displayName.toLowerCase().contains(qLower)) return true;
+  return section.items.any((item) => item.entries.any((e) =>
+      formatKey(e.key).toLowerCase().contains(qLower) ||
+      e.value.toString().toLowerCase().contains(qLower)));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

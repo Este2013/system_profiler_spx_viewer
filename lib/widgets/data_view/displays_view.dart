@@ -162,11 +162,13 @@ bool _displayMatchesQuery(Map<String, dynamic> display, String q) {
 class DisplaysView extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final String searchQuery;
+  final String sectionName;
 
   const DisplaysView({
     super.key,
     required this.items,
     this.searchQuery = '',
+    this.sectionName = '',
   });
 
   @override
@@ -177,7 +179,36 @@ class _DisplaysViewState extends State<DisplaysView> {
   final _filterCtrl = TextEditingController();
   String _filter = '';
 
-  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.sectionName.isNotEmpty &&
+      widget.sectionName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterCtrl.text = _filter;
+  }
+
+  /// For filtering — local field only.
+  String get _q => _filter;
+
+  /// For highlighting — falls back to global query when local field is empty.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant DisplaysView old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
 
   @override
   void dispose() {
@@ -231,6 +262,7 @@ class _DisplaysViewState extends State<DisplaysView> {
             itemBuilder: (context, i) => _GpuSection(
               item: widget.items[i],
               searchQuery: _q,
+              highlightQuery: _highlightQuery,
               showDivider: i < widget.items.length - 1,
             ),
           ),
@@ -247,11 +279,13 @@ class _DisplaysViewState extends State<DisplaysView> {
 class _GpuSection extends StatefulWidget {
   final Map<String, dynamic> item;
   final String searchQuery;
+  final String highlightQuery;
   final bool showDivider;
 
   const _GpuSection({
     required this.item,
     required this.searchQuery,
+    this.highlightQuery = '',
     required this.showDivider,
   });
 
@@ -328,7 +362,7 @@ class _GpuSectionState extends State<_GpuSection>
             .toList()
         : <Map<String, dynamic>>[];
 
-    final gpuRows = _buildGpuRows(item, q, sp, theme, cs);
+    final gpuRows = _buildGpuRows(item, q, widget.highlightQuery, sp, theme, cs);
     final totalBadge = gpuRows.length + displays.length;
 
     return Padding(
@@ -394,6 +428,7 @@ class _GpuSectionState extends State<_GpuSection>
                       (i) => _DisplaySection(
                         display: displays[i],
                         searchQuery: q,
+                        highlightQuery: widget.highlightQuery,
                         showDivider: i < displays.length - 1,
                       ),
                     ),
@@ -420,6 +455,7 @@ class _GpuSectionState extends State<_GpuSection>
   List<Widget> _buildGpuRows(
     Map<String, dynamic> item,
     String q,
+    String highlightQuery,
     UiScaleProvider sp,
     ThemeData theme,
     ColorScheme cs,
@@ -443,7 +479,7 @@ class _GpuSectionState extends State<_GpuSection>
         label: label,
         value: val,
         keyWidth: keyW,
-        searchQuery: q,
+        searchQuery: highlightQuery,
         theme: theme,
         cs: cs,
       ));
@@ -496,11 +532,13 @@ class _DisplaysSubHeader extends StatelessWidget {
 class _DisplaySection extends StatefulWidget {
   final Map<String, dynamic> display;
   final String searchQuery;
+  final String highlightQuery;
   final bool showDivider;
 
   const _DisplaySection({
     required this.display,
     required this.searchQuery,
+    this.highlightQuery = '',
     required this.showDivider,
   });
 
@@ -564,7 +602,7 @@ class _DisplaySectionState extends State<_DisplaySection>
     }
 
     final displayName = display['_name']?.toString() ?? 'Display';
-    final rows = _buildDisplayRows(display, q, sp, theme, cs);
+    final rows = _buildDisplayRows(display, q, widget.highlightQuery, sp, theme, cs);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
@@ -644,6 +682,7 @@ class _DisplaySectionState extends State<_DisplaySection>
   List<Widget> _buildDisplayRows(
     Map<String, dynamic> display,
     String q,
+    String highlightQuery,
     UiScaleProvider sp,
     ThemeData theme,
     ColorScheme cs,
@@ -666,7 +705,7 @@ class _DisplaySectionState extends State<_DisplaySection>
         label: label,
         value: val,
         keyWidth: keyW,
-        searchQuery: q,
+        searchQuery: highlightQuery,
         theme: theme,
         cs: cs,
       ));

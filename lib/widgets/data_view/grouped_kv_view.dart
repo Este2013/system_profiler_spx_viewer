@@ -74,11 +74,13 @@ String _flatten(dynamic v) {
 class GroupedKvView extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final String searchQuery;
+  final String sectionName;
 
   const GroupedKvView({
     super.key,
     required this.items,
     this.searchQuery = '',
+    this.sectionName = '',
   });
 
   @override
@@ -89,14 +91,42 @@ class _GroupedKvViewState extends State<GroupedKvView> {
   final _filterCtrl = TextEditingController();
   String _filter = '';
 
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.sectionName.isNotEmpty &&
+      widget.sectionName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterCtrl.text = _filter;
+  }
+
+  /// For filtering — local field only.
+  String get _effectiveFilter => _filter;
+
+  /// For highlighting — falls back to global query when local field is empty.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant GroupedKvView old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
+
   @override
   void dispose() {
     _filterCtrl.dispose();
     super.dispose();
   }
-
-  String get _effectiveFilter =>
-      _filter.isNotEmpty ? _filter : widget.searchQuery;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +174,7 @@ class _GroupedKvViewState extends State<GroupedKvView> {
             itemBuilder: (context, index) => _GroupSection(
               item: widget.items[index],
               searchQuery: _effectiveFilter,
+              highlightQuery: _highlightQuery,
               showDivider: index < widget.items.length - 1,
             ),
           ),
@@ -160,11 +191,13 @@ class _GroupedKvViewState extends State<GroupedKvView> {
 class _GroupSection extends StatefulWidget {
   final Map<String, dynamic> item;
   final String searchQuery;
+  final String highlightQuery;
   final bool showDivider;
 
   const _GroupSection({
     required this.item,
     required this.searchQuery,
+    this.highlightQuery = '',
     required this.showDivider,
   });
 
@@ -297,7 +330,7 @@ class _GroupSectionState extends State<_GroupSection>
                     .map((e) => _KvRow(
                           keyName: e.key,
                           value: e.value,
-                          searchQuery: widget.searchQuery,
+                          searchQuery: widget.highlightQuery,
                         ))
                     .toList(),
               ),

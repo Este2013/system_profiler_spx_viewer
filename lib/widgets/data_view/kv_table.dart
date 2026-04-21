@@ -3,16 +3,21 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../highlight_text.dart';
 
 /// Displays a single SPX item (Map) as a filterable key-value table.
 class KvTable extends StatefulWidget {
   final Map<String, dynamic> item;
   final String searchQuery;
+  /// Display name of the section that owns this item, used to suppress
+  /// filtering when the global search matched the section name itself.
+  final String sectionName;
 
   const KvTable({
     super.key,
     required this.item,
     this.searchQuery = '',
+    this.sectionName = '',
   });
 
   @override
@@ -22,6 +27,35 @@ class KvTable extends StatefulWidget {
 class _KvTableState extends State<KvTable> {
   final _filterController = TextEditingController();
   String _filter = '';
+
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.sectionName.isNotEmpty &&
+      widget.sectionName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterController.text = _filter;
+  }
+
+  /// Filtering uses only the local field; highlighting falls back to the
+  /// global query so matches stay visible even when the filter is cleared.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant KvTable old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
 
   @override
   void dispose() {
@@ -34,12 +68,9 @@ class _KvTableState extends State<KvTable> {
         .where((e) => !isInternalKey(e.key) && e.key != '_name')
         .toList();
 
-    final effectiveFilter =
-        _filter.isNotEmpty ? _filter : widget.searchQuery;
+    if (_filter.isEmpty) return entries;
 
-    if (effectiveFilter.isEmpty) return entries;
-
-    final q = effectiveFilter.toLowerCase();
+    final q = _filter.toLowerCase();
     return entries.where((e) {
       return formatKey(e.key).toLowerCase().contains(q) ||
           _flattenToString(e.value).toLowerCase().contains(q);
@@ -108,7 +139,7 @@ class _KvTableState extends State<KvTable> {
                 return _KvRow(
                   keyName: entry.key,
                   value: entry.value,
-                  searchQuery: _filter.isNotEmpty ? _filter : widget.searchQuery,
+                  searchQuery: _highlightQuery,
                 );
               },
             ),
@@ -119,10 +150,10 @@ class _KvTableState extends State<KvTable> {
 
   String _flattenToString(dynamic value) {
     if (value is List) {
-      return value.map(_flattenToString).join(' ');
+      return value.map(_flattenToString).join(', ');
     }
     if (value is Map) {
-      return value.values.map(_flattenToString).join(' ');
+      return value.values.map(_flattenToString).join(', ');
     }
     return value.toString();
   }
@@ -200,8 +231,9 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
           // Key column (fixed width)
           SizedBox(
             width: sp.sz(210),
-            child: Text(
-              formatKey(widget.keyName),
+            child: HighlightText(
+              text:  formatKey(widget.keyName),
+              query: widget.searchQuery,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
@@ -222,11 +254,9 @@ class _KvRowState extends State<_KvRow> with SingleTickerProviderStateMixin {
 
   Widget _buildSimpleValue(BuildContext context) {
     final str = _formatSimple(widget.value);
-    if (widget.searchQuery.isNotEmpty) {
-      return _HighlightText(text: str, query: widget.searchQuery);
-    }
-    return SelectableText(
-      str,
+    return HighlightText(
+      text:  str,
+      query: widget.searchQuery,
       style: Theme.of(context).textTheme.bodyMedium,
     );
   }
@@ -395,51 +425,3 @@ class _ComplexValueView extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-
-class _HighlightText extends StatelessWidget {
-  final String text;
-  final String query;
-
-  const _HighlightText({required this.text, required this.query});
-
-  @override
-  Widget build(BuildContext context) {
-    if (query.isEmpty) {
-      return SelectableText(text);
-    }
-
-    final theme = Theme.of(context);
-    final lower = text.toLowerCase();
-    final queryLower = query.toLowerCase();
-    final spans = <TextSpan>[];
-    int start = 0;
-
-    int idx;
-    while ((idx = lower.indexOf(queryLower, start)) != -1) {
-      if (idx > start) {
-        spans.add(TextSpan(text: text.substring(start, idx)));
-      }
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + query.length),
-        style: TextStyle(
-          backgroundColor: theme.colorScheme.tertiaryContainer,
-          color: theme.colorScheme.onTertiaryContainer,
-          fontWeight: FontWeight.bold,
-        ),
-      ));
-      start = idx + query.length;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return SelectableText.rich(
-      TextSpan(
-        style: theme.textTheme.bodyMedium,
-        children: spans,
-      ),
-    );
-  }
-}

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../highlight_text.dart';
 
 /// Displays a list of SPX items as a sortable, filterable table.
 class ItemsTable extends StatefulWidget {
@@ -31,6 +32,38 @@ class _ItemsTableState extends State<ItemsTable> {
 
   static const int _maxColumns = 7;
 
+  /// Returns true when [q] matches the section display name (i.e. the user
+  /// searched for the section itself rather than content within it).
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.section.displayName.toLowerCase().contains(q.toLowerCase());
+
+  /// Syncs the local filter field to [q], clearing it when [q] is the section
+  /// name so all items are shown. Safe to call from initState (no setState).
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterController.text = _filter;
+  }
+
+  /// Filtering uses only the local field; highlighting falls back to the
+  /// global query so matches stay visible even when the filter is cleared.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant ItemsTable old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
+
   @override
   void dispose() {
     _filterController.dispose();
@@ -56,13 +89,12 @@ class _ItemsTableState extends State<ItemsTable> {
     var items = widget.section.items.toList();
 
     // Filter
-    final effectiveFilter =
-        _filter.isNotEmpty ? _filter : widget.searchQuery;
-    if (effectiveFilter.isNotEmpty) {
-      final q = effectiveFilter.toLowerCase();
+    if (_filter.isNotEmpty) {
+      final q = _filter.toLowerCase();
       items = items.where((item) {
-        return item.values.any(
-          (v) => _flattenToString(v).toLowerCase().contains(q),
+        return item.entries.any((e) =>
+          widget.keyFormatter(e.key).toLowerCase().contains(q) ||
+          _flattenToString(e.value).toLowerCase().contains(q),
         );
       }).toList();
     }
@@ -233,8 +265,7 @@ class _ItemsTableState extends State<ItemsTable> {
                     itemBuilder: (context, i) => _ItemRow(
                       item: items[i],
                       columns: columns,
-                      searchQuery:
-                          _filter.isNotEmpty ? _filter : widget.searchQuery,
+                      searchQuery: _highlightQuery,
                       keyFormatter: widget.keyFormatter,
                     ),
                   ),
@@ -246,10 +277,10 @@ class _ItemsTableState extends State<ItemsTable> {
 
   String _flattenToString(dynamic value) {
     if (value is Map) {
-      return value.values.map(_flattenToString).join(' ');
+      return value.values.map(_flattenToString).join(', ');
     }
     if (value is List) {
-      return value.map(_flattenToString).join(' ');
+      return value.map(_flattenToString).join(', ');
     }
     return value.toString();
   }
@@ -282,17 +313,29 @@ class _ItemRowState extends State<_ItemRow> {
     return sub is List && sub.isNotEmpty;
   }
 
+  bool get _hasSearchMatch {
+    final q = widget.searchQuery;
+    if (q.isEmpty) return false;
+    final qLower = q.toLowerCase();
+    return widget.item.entries.any((e) =>
+        widget.keyFormatter(e.key).toLowerCase().contains(qLower) ||
+        (e.value?.toString().toLowerCase() ?? '').contains(qLower));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final sp = context.watch<UiScaleProvider>();
 
+    final match = _hasSearchMatch;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Main row
-        InkWell(
+        Container(
+          color: match ? colorScheme.secondaryContainer.withAlpha(50) : null,
+          child: InkWell(
           onTap: _hasSubItems
               ? () => setState(() => _expanded = !_expanded)
               : null,
@@ -328,6 +371,7 @@ class _ItemRowState extends State<_ItemRow> {
             ),
           ),
         ),
+        ),
 
         // Sub-items expansion
         if (_expanded && _hasSubItems)
@@ -355,15 +399,11 @@ class _ItemRowState extends State<_ItemRow> {
   Widget _buildCell(BuildContext context, dynamic value) {
     final str = _formatCell(value);
     final q = widget.searchQuery;
-
-    if (q.isNotEmpty && str.toLowerCase().contains(q.toLowerCase())) {
-      return _HighlightText(text: str, query: q);
-    }
-
-    return Text(
-      str,
+    return HighlightText(
+      text:     str,
+      query:    q,
+      style:    Theme.of(context).textTheme.bodyMedium,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(context).textTheme.bodyMedium,
     );
   }
 
@@ -450,52 +490,3 @@ class _SubItemsView extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-
-class _HighlightText extends StatelessWidget {
-  final String text;
-  final String query;
-
-  const _HighlightText({required this.text, required this.query});
-
-  @override
-  Widget build(BuildContext context) {
-    if (query.isEmpty) {
-      return Text(text, overflow: TextOverflow.ellipsis);
-    }
-
-    final theme = Theme.of(context);
-    final lower = text.toLowerCase();
-    final queryLower = query.toLowerCase();
-    final spans = <TextSpan>[];
-    int start = 0;
-
-    int idx;
-    while ((idx = lower.indexOf(queryLower, start)) != -1) {
-      if (idx > start) {
-        spans.add(TextSpan(text: text.substring(start, idx)));
-      }
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + query.length),
-        style: TextStyle(
-          backgroundColor: theme.colorScheme.tertiaryContainer,
-          color: theme.colorScheme.onTertiaryContainer,
-          fontWeight: FontWeight.bold,
-        ),
-      ));
-      start = idx + query.length;
-    }
-
-    if (start < text.length) {
-      spans.add(TextSpan(text: text.substring(start)));
-    }
-
-    return RichText(
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        style: theme.textTheme.bodyMedium,
-        children: spans,
-      ),
-    );
-  }
-}

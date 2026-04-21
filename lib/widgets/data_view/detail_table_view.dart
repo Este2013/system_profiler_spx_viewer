@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/spx_section.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../highlight_text.dart';
 import '../resizable_split.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -383,14 +384,38 @@ class _DetailTableViewState extends State<DetailTableView> {
 
   static const int _maxCols = 7;
 
-  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
+  /// Used for row filtering — local field only.
+  String get _q => _filter;
+
+  /// Used for text highlighting — falls back to global query when local
+  /// filter is empty, so highlights stay visible on name-matched sections
+  /// or after the user has cleared the field.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.section.displayName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterCtrl.text = _filter;
+  }
 
   @override
   void initState() {
     super.initState();
-    // Default sort: by name ascending.
     _sortColumn = '_name';
     _sortAscending = true;
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant DetailTableView old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
   }
 
   @override
@@ -420,7 +445,9 @@ class _DetailTableViewState extends State<DetailTableView> {
     if (q.isNotEmpty) {
       final lower = q.toLowerCase();
       items = items.where((item) {
-        return item.values.any((v) => _flatStr(v).toLowerCase().contains(lower));
+        return item.entries.any((e) =>
+            _colLabel(e.key, widget.keyLabels).toLowerCase().contains(lower) ||
+            _flatStr(e.value).toLowerCase().contains(lower));
       }).toList();
     }
     final col = _sortColumn;
@@ -443,8 +470,8 @@ class _DetailTableViewState extends State<DetailTableView> {
   }
 
   String _flatStr(dynamic v) {
-    if (v is List) return v.map(_flatStr).join(' ');
-    if (v is Map) return v.values.map(_flatStr).join(' ');
+    if (v is List) return v.map(_flatStr).join(', ');
+    if (v is Map) return v.values.map(_flatStr).join(', ');
     if (v is DateTime) return _kDateFmt.format(v.toLocal());
     return v.toString();
   }
@@ -494,7 +521,7 @@ class _DetailTableViewState extends State<DetailTableView> {
                 columns:     columns,
                 keyLabels:   widget.keyLabels,
                 valueFmt:    widget.valueFmt,
-                searchQuery: _q,
+                searchQuery: _highlightQuery,
                 selected:    selected,
                 onTap: () => setState(() {
                   _selectedItem = selected ? null : item;
@@ -622,6 +649,7 @@ class _DetailTableViewState extends State<DetailTableView> {
                       keyLabels:   widget.keyLabels,
                       valueFmt:    widget.valueFmt,
                       detailOrder: widget.detailOrder,
+                      searchQuery: _highlightQuery,
                       sp:          sp,
                       theme:       theme,
                       cs:          cs,
@@ -822,6 +850,7 @@ class _DetailPanel extends StatelessWidget {
   final Map<String, String> keyLabels;
   final String Function(String, dynamic) valueFmt;
   final List<String> detailOrder;
+  final String searchQuery;
   final UiScaleProvider sp;
   final ThemeData theme;
   final ColorScheme cs;
@@ -833,6 +862,7 @@ class _DetailPanel extends StatelessWidget {
     required this.keyLabels,
     required this.valueFmt,
     required this.detailOrder,
+    this.searchQuery = '',
     required this.sp,
     required this.theme,
     required this.cs,
@@ -866,12 +896,13 @@ class _DetailPanel extends StatelessWidget {
       if (str.isEmpty) return;
 
       widgets.add(_DetailRow(
-        label:    _label(key),
-        value:    str,
-        indent:   0,
-        keyWidth: keyW,
-        theme:    theme,
-        cs:       cs,
+        label:       _label(key),
+        value:       str,
+        indent:      0,
+        keyWidth:    keyW,
+        searchQuery: searchQuery,
+        theme:       theme,
+        cs:          cs,
       ));
     }
 
@@ -900,14 +931,15 @@ class _DetailPanel extends StatelessWidget {
         if (isFontTypefaces) {
           // Collapsible typeface entry — styled like _GpuSection in Displays.
           widgets.add(_CollapsibleEntry(
-            name:     subName.isNotEmpty ? subName : '—',
-            data:     sub,
-            labelFn:  (k) => _kTypefaceLabels[k] ?? formatKey(k),
-            valueFmt: valueFmt,
-            keyWidth: keyW,
-            sp:       sp,
-            theme:    theme,
-            cs:       cs,
+            name:        subName.isNotEmpty ? subName : '—',
+            data:        sub,
+            labelFn:     (k) => _kTypefaceLabels[k] ?? formatKey(k),
+            valueFmt:    valueFmt,
+            keyWidth:    keyW,
+            searchQuery: searchQuery,
+            sp:          sp,
+            theme:       theme,
+            cs:          cs,
           ));
         } else {
           // Non-font list-of-maps: static sub-header + KV rows.
@@ -924,12 +956,13 @@ class _DetailPanel extends StatelessWidget {
             if (e.value is Map || e.value is List) continue;
             final val = valueFmt(e.key, e.value);
             widgets.add(_DetailRow(
-              label:    _label(e.key),
-              value:    val.isEmpty ? e.value.toString() : val,
-              indent:   sp.sz(subName.isNotEmpty ? 36 : 20),
-              keyWidth: (keyW - sp.sz(subName.isNotEmpty ? 36 : 20)).clamp(80.0, double.infinity),
-              theme:    theme,
-              cs:       cs,
+              label:       _label(e.key),
+              value:       val.isEmpty ? e.value.toString() : val,
+              indent:      sp.sz(subName.isNotEmpty ? 36 : 20),
+              keyWidth:    (keyW - sp.sz(subName.isNotEmpty ? 36 : 20)).clamp(80.0, double.infinity),
+              searchQuery: searchQuery,
+              theme:       theme,
+              cs:          cs,
             ));
           }
         }
@@ -963,12 +996,13 @@ class _DetailPanel extends StatelessWidget {
           final sk = se.key.toString();
           if (isInternalKey(sk)) continue;
           widgets.add(_DetailRow(
-            label:    _label(sk),
-            value:    valueFmt(sk, se.value),
-            indent:   sp.sz(20),
-            keyWidth: (keyW - sp.sz(20)).clamp(80.0, double.infinity),
-            theme:    theme,
-            cs:       cs,
+            label:       _label(sk),
+            value:       valueFmt(sk, se.value),
+            indent:      sp.sz(20),
+            keyWidth:    (keyW - sp.sz(20)).clamp(80.0, double.infinity),
+            searchQuery: searchQuery,
+            theme:       theme,
+            cs:          cs,
           ));
         }
       } else {
@@ -991,6 +1025,7 @@ class _CollapsibleEntry extends StatefulWidget {
   final String Function(String key) labelFn;
   final String Function(String key, dynamic value) valueFmt;
   final double keyWidth;
+  final String searchQuery;
   final UiScaleProvider sp;
   final ThemeData theme;
   final ColorScheme cs;
@@ -1001,6 +1036,7 @@ class _CollapsibleEntry extends StatefulWidget {
     required this.labelFn,
     required this.valueFmt,
     required this.keyWidth,
+    this.searchQuery = '',
     required this.sp,
     required this.theme,
     required this.cs,
@@ -1112,12 +1148,13 @@ class _CollapsibleEntryState extends State<_CollapsibleEntry>
                 children: entries.map((e) {
                   final val = widget.valueFmt(e.key, e.value);
                   return _DetailRow(
-                    label:    widget.labelFn(e.key),
-                    value:    val.isEmpty ? e.value.toString() : val,
-                    indent:   0,
-                    keyWidth: (widget.keyWidth - 26).clamp(80.0, double.infinity),
-                    theme:    theme,
-                    cs:       cs,
+                    label:       widget.labelFn(e.key),
+                    value:       val.isEmpty ? e.value.toString() : val,
+                    indent:      0,
+                    keyWidth:    (widget.keyWidth - 26).clamp(80.0, double.infinity),
+                    searchQuery: widget.searchQuery,
+                    theme:       theme,
+                    cs:          cs,
                   );
                 }).toList(),
               ),
@@ -1138,6 +1175,7 @@ class _DetailRow extends StatelessWidget {
   final String value;
   final double indent;
   final double keyWidth;
+  final String searchQuery;
   final ThemeData theme;
   final ColorScheme cs;
 
@@ -1146,6 +1184,7 @@ class _DetailRow extends StatelessWidget {
     required this.value,
     required this.indent,
     required this.keyWidth,
+    this.searchQuery = '',
     required this.theme,
     required this.cs,
   });
@@ -1158,8 +1197,9 @@ class _DetailRow extends StatelessWidget {
           children: [
             SizedBox(
               width: keyWidth,
-              child: Text(
-                label,
+              child: HighlightText(
+                text:  label,
+                query: searchQuery,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color:      cs.onSurfaceVariant,
                   fontWeight: FontWeight.w500,
@@ -1168,7 +1208,11 @@ class _DetailRow extends StatelessWidget {
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: SelectableText(value, style: theme.textTheme.bodyMedium),
+              child: HighlightText(
+                text:  value,
+                query: searchQuery,
+                style: theme.textTheme.bodyMedium,
+              ),
             ),
           ],
         ),

@@ -163,11 +163,13 @@ bool _itemMatchesQ(String q, Map<String, dynamic> item) {
 class PowerView extends StatefulWidget {
   final List<Map<String, dynamic>> items;
   final String searchQuery;
+  final String sectionName;
 
   const PowerView({
     super.key,
     required this.items,
     this.searchQuery = '',
+    this.sectionName = '',
   });
 
   @override
@@ -178,7 +180,36 @@ class _PowerViewState extends State<PowerView> {
   final _filterCtrl = TextEditingController();
   String _filter = '';
 
-  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.sectionName.isNotEmpty &&
+      widget.sectionName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterCtrl.text = _filter;
+  }
+
+  /// For filtering — local field only.
+  String get _q => _filter;
+
+  /// For highlighting — falls back to global query when local field is empty.
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant PowerView old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
 
   @override
   void dispose() {
@@ -237,6 +268,7 @@ class _PowerViewState extends State<PowerView> {
             itemBuilder: (context, i) => _PowerSection(
               item: visibleItems[i],
               searchQuery: q,
+              highlightQuery: _highlightQuery,
               showDivider: i < visibleItems.length - 1,
               startExpanded: true,
             ),
@@ -254,12 +286,14 @@ class _PowerViewState extends State<PowerView> {
 class _PowerSection extends StatefulWidget {
   final Map<String, dynamic> item;
   final String searchQuery;
+  final String highlightQuery;
   final bool showDivider;
   final bool startExpanded;
 
   const _PowerSection({
     required this.item,
     required this.searchQuery,
+    this.highlightQuery = '',
     required this.showDivider,
     required this.startExpanded,
   });
@@ -321,8 +355,8 @@ class _PowerSectionState extends State<_PowerSection>
     final sectionName =
         _formatSectionName(widget.item['_name']?.toString() ?? 'Power');
 
-    final rows = _buildRows(context, widget.item, widget.searchQuery, sp,
-        theme, cs);
+    final rows = _buildRows(context, widget.item, widget.searchQuery,
+        widget.highlightQuery, sp, theme, cs);
 
     // Hide entirely when nothing matches
     if (widget.searchQuery.isNotEmpty && rows.isEmpty &&
@@ -407,6 +441,7 @@ class _PowerSectionState extends State<_PowerSection>
     BuildContext context,
     Map<String, dynamic> item,
     String q,
+    String highlightQuery,
     UiScaleProvider sp,
     ThemeData theme,
     ColorScheme cs,
@@ -453,7 +488,7 @@ class _PowerSectionState extends State<_PowerSection>
             value: subVal,
             indent: indent,
             keyWidth: keyW,
-            searchQuery: q,
+            searchQuery: highlightQuery,
             theme: theme,
             cs: cs,
           ));
@@ -467,7 +502,7 @@ class _PowerSectionState extends State<_PowerSection>
           value: val,
           indent: 0,
           keyWidth: keyW0,
-          searchQuery: q,
+          searchQuery: highlightQuery,
           theme: theme,
           cs: cs,
         ));

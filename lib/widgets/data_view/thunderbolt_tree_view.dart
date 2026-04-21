@@ -138,9 +138,17 @@ List<MapEntry<String, dynamic>> _receptacleEntries(
 // Public widget
 // ─────────────────────────────────────────────────────────────────────────────
 
+bool _nodeMatchesQuery(Map<String, dynamic> node, String q) {
+  final qLower = q.toLowerCase();
+  return node.entries.any((e) =>
+      e.key.toLowerCase().contains(qLower) ||
+      e.value.toString().toLowerCase().contains(qLower));
+}
+
 class ThunderboltTreeView extends StatefulWidget {
   final List<Map<String, dynamic>> items;
-  const ThunderboltTreeView({super.key, required this.items});
+  final String searchQuery;
+  const ThunderboltTreeView({super.key, required this.items, this.searchQuery = ''});
 
   @override
   State<ThunderboltTreeView> createState() => _ThunderboltTreeViewState();
@@ -181,6 +189,7 @@ class _ThunderboltTreeViewState extends State<ThunderboltTreeView> {
         expanded: _expanded,
         onSelect: _select,
         onToggle: _toggle,
+        searchQuery: widget.searchQuery,
       ),
       right: _selected == null
           ? Center(
@@ -206,6 +215,7 @@ class _TreePanel extends StatelessWidget {
   final Set<String> expanded;
   final ValueChanged<Map<String, dynamic>> onSelect;
   final ValueChanged<Map<String, dynamic>> onToggle;
+  final String searchQuery;
 
   const _TreePanel({
     required this.items,
@@ -213,6 +223,7 @@ class _TreePanel extends StatelessWidget {
     required this.expanded,
     required this.onSelect,
     required this.onToggle,
+    this.searchQuery = '',
   });
 
   @override
@@ -232,6 +243,7 @@ class _TreePanel extends StatelessWidget {
               expanded: expanded,
               onSelect: onSelect,
               onToggle: onToggle,
+              searchQuery: searchQuery,
             ),
         ],
       ),
@@ -251,6 +263,7 @@ class _NodeTile extends StatelessWidget {
   final Set<String> expanded;
   final ValueChanged<Map<String, dynamic>> onSelect;
   final ValueChanged<Map<String, dynamic>> onToggle;
+  final String searchQuery;
 
   const _NodeTile({
     required this.node,
@@ -260,6 +273,7 @@ class _NodeTile extends StatelessWidget {
     required this.expanded,
     required this.onSelect,
     required this.onToggle,
+    this.searchQuery = '',
   });
 
   static const double _indent = 14.0;
@@ -275,6 +289,7 @@ class _NodeTile extends StatelessWidget {
     final isExpanded = expanded.contains(_nodeKey(node));
     final kids = _children(node);
     final hasKids = kids.isNotEmpty;
+    final hasMatch = searchQuery.isNotEmpty && _nodeMatchesQuery(node, searchQuery);
 
     // Subtitle: "Vendor · Device Name" or truncated UID.
     final vendor = (node['vendor_name_key'] ?? node['vendor_name'])?.toString();
@@ -292,7 +307,11 @@ class _NodeTile extends StatelessWidget {
       subtitle = uid.length > 18 ? '${uid.substring(0, 18)}…' : uid;
     }
 
-    final rowColor = isSelected ? cs.primaryContainer : Colors.transparent;
+    final rowColor = isSelected
+        ? cs.primaryContainer
+        : hasMatch
+            ? cs.secondaryContainer.withAlpha(160)
+            : Colors.transparent;
     final labelColor = isSelected ? cs.onPrimaryContainer : cs.onSurface;
     final mutedColor = isSelected
         ? cs.onPrimaryContainer.withAlpha(180)
@@ -365,6 +384,7 @@ class _NodeTile extends StatelessWidget {
                       ),
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -380,6 +400,7 @@ class _NodeTile extends StatelessWidget {
               expanded: expanded,
               onSelect: onSelect,
               onToggle: onToggle,
+              searchQuery: searchQuery,
             ),
       ],
     );

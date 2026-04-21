@@ -12,6 +12,7 @@ class DocumentProvider extends ChangeNotifier {
   SpxSection? _selectedSection;
   String _globalSearchQuery = '';
   bool _isSearchActive = false;
+  int _searchFocusVersion = 0;
   bool _isSidebarCollapsed = false;
   bool _isLoading = false;
   String? _errorMessage;
@@ -20,6 +21,7 @@ class DocumentProvider extends ChangeNotifier {
   SpxSection? get selectedSection => _selectedSection;
   String get globalSearchQuery => _globalSearchQuery;
   bool get isSearchActive => _isSearchActive;
+  int  get searchFocusVersion => _searchFocusVersion;
   bool get isSidebarCollapsed => _isSidebarCollapsed;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
@@ -105,6 +107,14 @@ class DocumentProvider extends ChangeNotifier {
   void setSearchActive(bool active) {
     _isSearchActive = active;
     if (!active) _globalSearchQuery = '';
+    notifyListeners();
+  }
+
+  /// Activates the search bar (if not already active) and bumps a version
+  /// counter that HomeScreen watches to request focus + select-all.
+  void requestSearchFocus() {
+    if (!_isSearchActive) _isSearchActive = true;
+    _searchFocusVersion++;
     notifyListeners();
   }
 

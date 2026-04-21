@@ -128,7 +128,7 @@ class SectionView extends StatelessWidget {
 
     // Sync Services → two-pane group → log tree with detail panel.
     if (section.dataType == 'SPSyncServicesDataType') {
-      return SyncServicesView(items: section.items);
+      return SyncServicesView(items: section.items, searchQuery: searchQuery);
     }
 
     // Software Overview → ordered KV view with formatted uptime and labels.
@@ -150,7 +150,7 @@ class SectionView extends StatelessWidget {
 
     // Logs → dedicated two-pane log viewer.
     if (section.dataType == 'SPLogsDataType') {
-      return LogViewer(items: section.items);
+      return LogViewer(items: section.items, searchQuery: searchQuery);
     }
 
     // Language & Region (and similar grouped-settings sections) →
@@ -176,7 +176,7 @@ class SectionView extends StatelessWidget {
 
     // Thunderbolt / USB4 → two-pane tree + detail view.
     if (section.dataType == 'SPThunderboltDataType' || section.dataType == 'SPUSB4DataType') {
-      return ThunderboltTreeView(items: section.items);
+      return ThunderboltTreeView(items: section.items, searchQuery: searchQuery);
     }
 
     // Network Locations → hierarchical collapsible service tree.
@@ -248,7 +248,11 @@ class SectionView extends StatelessWidget {
       }
 
       // Single item with no nested _items → plain key-value table.
-      return KvTable(item: only, searchQuery: searchQuery);
+      return KvTable(
+        item:        only,
+        searchQuery: searchQuery,
+        sectionName: section.displayName,
+      );
     }
     // Multiple items → sortable/filterable table
     return ItemsTable(

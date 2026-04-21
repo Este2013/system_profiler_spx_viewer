@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ui_scale_provider.dart';
 import '../../utils/key_formatter.dart';
+import '../highlight_text.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public widget
@@ -32,7 +33,7 @@ class NestedItemsView extends StatefulWidget {
   /// Icon shown in the detail-panel header.
   final IconData detailIcon;
 
-  NestedItemsView({
+  const NestedItemsView({
     super.key,
     required this.items,
     this.searchQuery = '',
@@ -72,6 +73,7 @@ class _NestedItemsViewState extends State<NestedItemsView> {
             subtitleBuilder: widget.subtitleBuilder,
             leadingIconBuilder: widget.leadingIconBuilder,
             trailingIconBuilder: widget.trailingIconBuilder,
+            searchQuery: widget.searchQuery,
           ),
         ),
 
@@ -105,6 +107,13 @@ class _NestedItemsViewState extends State<NestedItemsView> {
 // Left panel
 // ─────────────────────────────────────────────────────────────────────────────
 
+bool _itemMatchesQuery(Map<String, dynamic> item, String q) {
+  final qLower = q.toLowerCase();
+  return item.entries.any((e) =>
+      e.key.toLowerCase().contains(qLower) ||
+      e.value.toString().toLowerCase().contains(qLower));
+}
+
 class _ListPanel extends StatelessWidget {
   final List<Map<String, dynamic>> items;
   final Map<String, dynamic>? selected;
@@ -112,6 +121,7 @@ class _ListPanel extends StatelessWidget {
   final String? Function(Map<String, dynamic>)? subtitleBuilder;
   final IconData? Function(Map<String, dynamic>)? leadingIconBuilder;
   final IconData? Function(Map<String, dynamic>)? trailingIconBuilder;
+  final String searchQuery;
 
   const _ListPanel({
     required this.items,
@@ -120,6 +130,7 @@ class _ListPanel extends StatelessWidget {
     this.subtitleBuilder,
     this.leadingIconBuilder,
     this.trailingIconBuilder,
+    this.searchQuery = '',
   });
 
   @override
@@ -136,6 +147,8 @@ class _ListPanel extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = items[index];
           final isSel = selected == item;
+          final hasMatch = searchQuery.isNotEmpty &&
+              _itemMatchesQuery(item, searchQuery);
           final name = item['_name']?.toString() ?? 'Unknown';
           final subtitle = subtitleBuilder?.call(item);
           final leadingIcon = leadingIconBuilder?.call(item);
@@ -149,7 +162,11 @@ class _ListPanel extends StatelessWidget {
               : cs.onSurfaceVariant;
 
           return Material(
-            color: isSel ? cs.primaryContainer : Colors.transparent,
+            color: isSel
+                ? cs.primaryContainer
+                : hasMatch
+                    ? cs.secondaryContainer.withAlpha(160)
+                    : Colors.transparent,
             child: InkWell(
               onTap: () => onSelect(item),
               child: Padding(
@@ -209,6 +226,7 @@ class _ListPanel extends StatelessWidget {
                         color: mutedColor,
                       ),
                     ],
+
                   ],
                 ),
               ),
@@ -288,7 +306,7 @@ class _DetailPanel extends StatelessWidget {
               : ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 6),
                   itemCount: fields.length,
-                  separatorBuilder: (_, __) => Divider(
+                  separatorBuilder: (_, _) => Divider(
                     height: 1,
                     color: cs.outlineVariant.withAlpha(80),
                     indent: 20,
@@ -358,8 +376,9 @@ class _FieldRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 190,
-            child: Text(
-              label,
+            child: HighlightText(
+              text:  label,
+              query: searchQuery,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: cs.onSurfaceVariant,
               ),
@@ -367,52 +386,14 @@ class _FieldRow extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: searchQuery.isNotEmpty
-                ? _HighlightText(
-                    text: value,
-                    query: searchQuery,
-                  )
-                : SelectableText(
-                    value,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+            child: HighlightText(
+              text:  value,
+              query: searchQuery,
+              style: theme.textTheme.bodyMedium,
+            ),
           ),
         ],
       ),
     );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _HighlightText extends StatelessWidget {
-  final String text;
-  final String query;
-  const _HighlightText({required this.text, required this.query});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    final lower = text.toLowerCase();
-    final q = query.toLowerCase();
-    final spans = <TextSpan>[];
-    int start = 0;
-    int idx;
-    while ((idx = lower.indexOf(q, start)) != -1) {
-      if (idx > start) spans.add(TextSpan(text: text.substring(start, idx)));
-      spans.add(TextSpan(
-        text: text.substring(idx, idx + query.length),
-        style: TextStyle(
-          backgroundColor: cs.tertiaryContainer,
-          color: cs.onTertiaryContainer,
-          fontWeight: FontWeight.bold,
-        ),
-      ));
-      start = idx + query.length;
-    }
-    if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
-    return SelectableText.rich(
-        TextSpan(style: theme.textTheme.bodyMedium, children: spans));
   }
 }

@@ -202,13 +202,39 @@ class _NetworkOverviewViewState extends State<NetworkOverviewView> {
   bool _sortAscending = true;
   Map<String, dynamic>? _selectedItem;
 
+  String get _q => _filter;
+
+  String get _highlightQuery =>
+      _filter.isNotEmpty ? _filter : widget.searchQuery;
+
+  bool _isNameMatch(String q) =>
+      q.isNotEmpty &&
+      widget.section.displayName.toLowerCase().contains(q.toLowerCase());
+
+  void _syncLocalFilter(String q) {
+    _filter = _isNameMatch(q) ? '' : q;
+    _filterCtrl.text = _filter;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _syncLocalFilter(widget.searchQuery);
+  }
+
+  @override
+  void didUpdateWidget(covariant NetworkOverviewView old) {
+    super.didUpdateWidget(old);
+    if (old.searchQuery != widget.searchQuery) {
+      setState(() => _syncLocalFilter(widget.searchQuery));
+    }
+  }
+
   @override
   void dispose() {
     _filterCtrl.dispose();
     super.dispose();
   }
-
-  String get _q => _filter.isNotEmpty ? _filter : widget.searchQuery;
 
   // ── Filtering & sorting ────────────────────────────────────────────────────
 
@@ -284,7 +310,7 @@ class _NetworkOverviewViewState extends State<NetworkOverviewView> {
                 item: item,
                 columns: columns,
                 cellVal: _cellVal,
-                searchQuery: _q,
+                searchQuery: _highlightQuery,
                 selected: selected,
                 onTap: () => setState(() {
                   _selectedItem = selected ? null : item;

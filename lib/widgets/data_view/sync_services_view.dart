@@ -77,10 +77,18 @@ List<MapEntry<String, dynamic>> _scalarFields(Map<String, dynamic> node) {
 
 /// Two-pane Sync Services viewer.
 /// Left: group → leaf tree.  Right: detail panel for the selected node.
+bool _nodeHasMatch(Map<String, dynamic> node, String q) {
+  final qLower = q.toLowerCase();
+  return node.entries.any((e) =>
+      e.key.toLowerCase().contains(qLower) ||
+      e.value.toString().toLowerCase().contains(qLower));
+}
+
 class SyncServicesView extends StatefulWidget {
   final List<Map<String, dynamic>> items;
+  final String searchQuery;
 
-  const SyncServicesView({super.key, required this.items});
+  const SyncServicesView({super.key, required this.items, this.searchQuery = ''});
 
   @override
   State<SyncServicesView> createState() => _SyncServicesViewState();
@@ -133,6 +141,7 @@ class _SyncServicesViewState extends State<SyncServicesView> {
         onSelectGroup: _selectGroup,
         onSelectLeaf:  _selectLeaf,
         onToggleGroup: _toggleGroup,
+        searchQuery:   widget.searchQuery,
       ),
       right: _selected == null
           ? Center(
@@ -159,6 +168,7 @@ class _TreePanel extends StatelessWidget {
   final ValueChanged<Map<String, dynamic>> onSelectGroup;
   final ValueChanged<Map<String, dynamic>> onSelectLeaf;
   final ValueChanged<int> onToggleGroup;
+  final String searchQuery;
 
   const _TreePanel({
     required this.groups,
@@ -167,6 +177,7 @@ class _TreePanel extends StatelessWidget {
     required this.onSelectGroup,
     required this.onSelectLeaf,
     required this.onToggleGroup,
+    this.searchQuery = '',
   });
 
   @override
@@ -186,6 +197,7 @@ class _TreePanel extends StatelessWidget {
               onSelectGroup: onSelectGroup,
               onSelectLeaf:  onSelectLeaf,
               onToggle:      onToggleGroup,
+              searchQuery:   searchQuery,
             ),
         ],
       ),
@@ -205,6 +217,7 @@ class _GroupTile extends StatelessWidget {
   final ValueChanged<Map<String, dynamic>> onSelectGroup;
   final ValueChanged<Map<String, dynamic>> onSelectLeaf;
   final ValueChanged<int> onToggle;
+  final String searchQuery;
 
   static const double _baseIndent  = 8.0;
   static const double _childIndent = 28.0;
@@ -217,6 +230,7 @@ class _GroupTile extends StatelessWidget {
     required this.onSelectGroup,
     required this.onSelectLeaf,
     required this.onToggle,
+    this.searchQuery = '',
   });
 
   @override
@@ -227,7 +241,11 @@ class _GroupTile extends StatelessWidget {
 
     final leaves     = _leafChildren(group);
     final isSelected = selected == group;
-    final rowColor   = isSelected ? cs.primaryContainer : Colors.transparent;
+    final rowColor = isSelected
+        ? cs.primaryContainer
+        : (searchQuery.isNotEmpty && _nodeHasMatch(group, searchQuery))
+            ? cs.secondaryContainer.withAlpha(160)
+            : Colors.transparent;
     final labelColor = isSelected ? cs.onPrimaryContainer : cs.onSurface;
     final mutedColor = isSelected ? cs.onPrimaryContainer.withAlpha(180) : cs.onSurfaceVariant;
 
@@ -291,6 +309,7 @@ class _GroupTile extends StatelessWidget {
                       ),
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -301,10 +320,11 @@ class _GroupTile extends StatelessWidget {
         if (isExpanded)
           for (final leaf in leaves)
             _LeafTile(
-              leaf:     leaf,
-              selected: selected,
-              onSelect: onSelectLeaf,
-              indent:   _childIndent,
+              leaf:        leaf,
+              selected:    selected,
+              onSelect:    onSelectLeaf,
+              indent:      _childIndent,
+              searchQuery: searchQuery,
             ),
       ],
     );
@@ -320,12 +340,14 @@ class _LeafTile extends StatelessWidget {
   final Map<String, dynamic>? selected;
   final ValueChanged<Map<String, dynamic>> onSelect;
   final double indent;
+  final String searchQuery;
 
   const _LeafTile({
     required this.leaf,
     required this.selected,
     required this.onSelect,
     required this.indent,
+    this.searchQuery = '',
   });
 
   @override
@@ -335,7 +357,11 @@ class _LeafTile extends StatelessWidget {
     final sp    = context.watch<UiScaleProvider>();
 
     final isSelected = selected == leaf;
-    final rowColor   = isSelected ? cs.primaryContainer : Colors.transparent;
+    final rowColor = isSelected
+        ? cs.primaryContainer
+        : (searchQuery.isNotEmpty && _nodeHasMatch(leaf, searchQuery))
+            ? cs.secondaryContainer.withAlpha(160)
+            : Colors.transparent;
     final labelColor = isSelected ? cs.onPrimaryContainer : cs.onSurface;
     final mutedColor = isSelected ? cs.onPrimaryContainer.withAlpha(180) : cs.onSurfaceVariant;
 
@@ -388,6 +414,7 @@ class _LeafTile extends StatelessWidget {
                   ),
                 ),
               ),
+
             ],
           ),
         ),

@@ -42,7 +42,8 @@ Map<String, dynamic>? _firstWithContent(List<Map<String, dynamic>> items) {
 /// Right: line-by-line content view with inline search/filter.
 class LogViewer extends StatefulWidget {
   final List<Map<String, dynamic>> items;
-  const LogViewer({super.key, required this.items});
+  final String searchQuery;
+  const LogViewer({super.key, required this.items, this.searchQuery = ''});
 
   @override
   State<LogViewer> createState() => _LogViewerState();
@@ -70,6 +71,7 @@ class _LogViewerState extends State<LogViewer> {
             items: widget.items,
             selected: _selected,
             onSelect: (item) => setState(() => _selected = item),
+            searchQuery: widget.searchQuery,
           ),
         ),
 
@@ -106,11 +108,13 @@ class _ListPanel extends StatelessWidget {
   final List<Map<String, dynamic>> items;
   final Map<String, dynamic>? selected;
   final ValueChanged<Map<String, dynamic>> onSelect;
+  final String searchQuery;
 
   const _ListPanel({
     required this.items,
     required this.selected,
     required this.onSelect,
+    this.searchQuery = '',
   });
 
   @override
@@ -122,7 +126,7 @@ class _ListPanel extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 6),
         itemCount: items.length,
         itemBuilder: (context, index) =>
-            _LogRow(item: items[index], selected: selected, onSelect: onSelect),
+            _LogRow(item: items[index], selected: selected, onSelect: onSelect, searchQuery: searchQuery),
       ),
     );
   }
@@ -132,11 +136,13 @@ class _LogRow extends StatelessWidget {
   final Map<String, dynamic> item;
   final Map<String, dynamic>? selected;
   final ValueChanged<Map<String, dynamic>> onSelect;
+  final String searchQuery;
 
   const _LogRow({
     required this.item,
     required this.selected,
     required this.onSelect,
+    this.searchQuery = '',
   });
 
   @override
@@ -149,9 +155,17 @@ class _LogRow extends StatelessWidget {
     final source = item['source']?.toString() ?? '';
     final sizeStr = _formatBytes(item['byteSize']);
     final hasContent = (item['contents']?.toString() ?? '').isNotEmpty;
+    final hasMatch = searchQuery.isNotEmpty && hasContent &&
+        (item['contents']?.toString() ?? '')
+            .toLowerCase()
+            .contains(searchQuery.toLowerCase());
 
     return Material(
-      color: isSel ? cs.primaryContainer : Colors.transparent,
+      color: isSel
+          ? cs.primaryContainer
+          : hasMatch
+              ? cs.secondaryContainer.withAlpha(160)
+              : Colors.transparent,
       child: InkWell(
         onTap: () => onSelect(item),
         child: Padding(
@@ -225,6 +239,7 @@ class _LogRow extends StatelessWidget {
                   ),
                 ),
               ],
+
             ],
           ),
         ),
@@ -344,8 +359,8 @@ class _ContentPanelState extends State<_ContentPanel> {
                       Text(
                         [
                           if (source.isNotEmpty) source,
-                          if (dateStr != null) dateStr,
-                        ].join('  ·  '),
+                          dateStr,
+                        ].nonNulls.join('  ·  '),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant,
                         ),
